@@ -5,6 +5,7 @@ import { Icon } from '../components/Icons'
 import { Modal } from '../components/Modal'
 import { Confirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
+import { testSheet } from '../lib/sheets'
 import type { Role, User } from '../types'
 
 type Section = 'users' | 'shop' | 'backup' | 'sync' | 'db'
@@ -70,6 +71,9 @@ export default function Settings() {
 
   const [syncEndpoint, setSyncEndpoint] = useState(settings.syncEndpoint)
   const [syncToken, setSyncToken] = useState(settings.syncToken)
+  const [sheetUrl, setSheetUrl] = useState(settings.sheetUrl)
+  const [autoSheet, setAutoSheet] = useState(settings.autoSheet)
+  const [autoSync, setAutoSync] = useState(settings.autoSync)
 
   const [tables, setTables] = useState<Array<{ table: string; rows: number }>>([])
   const [dbTable, setDbTable] = useState('users')
@@ -92,6 +96,18 @@ export default function Settings() {
   useEffect(() => {
     setSyncToken(settings.syncToken)
   }, [settings.syncToken])
+
+  useEffect(() => {
+    setSheetUrl(settings.sheetUrl)
+  }, [settings.sheetUrl])
+
+  useEffect(() => {
+    setAutoSheet(settings.autoSheet)
+  }, [settings.autoSheet])
+
+  useEffect(() => {
+    setAutoSync(settings.autoSync)
+  }, [settings.autoSync])
 
   useEffect(() => {
     dbList().then(setTables)
@@ -437,15 +453,15 @@ export default function Settings() {
           <div className="card">
             <div className="card-head">
               <div>
-                <div className="card-title">Sync (opsional)</div>
-                <div className="card-sub">Salin data ke endpoint eksternal</div>
+                <div className="card-title">Sync Cloudflare (opsional)</div>
+                <div className="card-sub">Salin data ke endpoint eksternal (backup cloud)</div>
               </div>
             </div>
             <Field label="Sync endpoint URL">
               <input
                 className="input"
                 value={syncEndpoint}
-                placeholder="https://example.com/sync"
+                placeholder="https://bb-barber-sync.feellzzmartijn.workers.dev/api/sync"
                 onChange={(e) => setSyncEndpoint(e.target.value)}
                 onBlur={saveSyncFields}
               />
@@ -460,11 +476,59 @@ export default function Settings() {
                 onBlur={saveSyncFields}
               />
             </Field>
-            <Button variant="primary" icon="sync" onClick={handleSyncNow}>
-              Sync sekarang
-            </Button>
+            <div className="head-actions">
+              <Button variant="primary" icon="sync" onClick={handleSyncNow}>
+                Sync sekarang
+              </Button>
+              <Chip selected={autoSync} onClick={() => { saveSettings({ autoSync: !autoSync }); setAutoSync(!autoSync) }}>
+                Auto-sync setelah transaksi: {autoSync ? 'ON' : 'OFF'}
+              </Chip>
+            </div>
             <p className="small muted" style={{ marginTop: 12 }}>
               Opsional: aplikasi bisa dipakai offline tanpa sync.
+            </p>
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <div className="card-title">Google Sheets (auto-input)</div>
+                <div className="card-sub">Tambah transaksi otomatis ke spreadsheet</div>
+              </div>
+            </div>
+            <Field
+              label="URL web app Google Apps Script"
+                hint="Deploy Apps Script sebagai web app (Anyone), salin URL /exec"
+            >
+              <input
+                className="input"
+                value={sheetUrl}
+                placeholder="https://script.google.com/macros/s/XXXX/exec"
+                onChange={(e) => setSheetUrl(e.target.value)}
+                onBlur={() => { saveSettings({ sheetUrl: sheetUrl.trim() }) }}
+              />
+            </Field>
+            <div className="head-actions">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!sheetUrl.trim()) {
+                    toast.push('Isi URL Apps Script dulu.', 'error')
+                    return
+                  }
+                  await saveSettings({ sheetUrl: sheetUrl.trim() })
+                  const r = await testSheet(sheetUrl)
+                  toast.push(r.message, r.ok ? 'success' : 'error')
+                }}
+              >
+                Tes koneksi
+              </Button>
+              <Chip selected={autoSheet} onClick={() => { saveSettings({ autoSheet: !autoSheet }); setAutoSheet(!autoSheet) }}>
+                Auto-input tiap transaksi: {autoSheet ? 'ON' : 'OFF'}
+              </Chip>
+            </div>
+            <p className="small muted" style={{ marginTop: 12 }}>
+              Setelah nyala, tiap pembayaran kasir otomatis menambah baris di sheet <b>Transaksi</b>. Rekapan harian dikirim dari halaman Laporan.
             </p>
           </div>
         </section>

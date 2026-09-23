@@ -58,6 +58,9 @@ export interface Settings {
   syncEndpoint: string
   syncToken: string
   shopName: string
+  sheetUrl: string
+  autoSheet: boolean
+  autoSync: boolean
 }
 
 export interface DailySummary {

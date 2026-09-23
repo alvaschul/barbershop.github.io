@@ -27,15 +27,21 @@ export async function buildBackup(): Promise<BackupFile> {
 }
 
 async function loadSettingsForBackup(): Promise<Settings> {
-  const [savedBarbers, shopName] = await Promise.all([
+  const [savedBarbers, shopName, sheetUrl, autoSheet, autoSync] = await Promise.all([
     getSetting<string[]>('savedBarbers'),
     getSetting<string>('shopName'),
+    getSetting<string>('sheetUrl'),
+    getSetting<boolean>('autoSheet'),
+    getSetting<boolean>('autoSync'),
   ])
   return {
     savedBarbers: Array.isArray(savedBarbers) ? savedBarbers : [],
     syncEndpoint: '',
     syncToken: '',
     shopName: shopName ?? 'Badboy Barber',
+    sheetUrl: sheetUrl ?? '',
+    autoSheet: autoSheet ?? false,
+    autoSync: autoSync ?? false,
   }
 }
 
@@ -82,6 +88,9 @@ export async function restoreBackup(file: BackupFile): Promise<void> {
     if (d.settings.savedBarbers) {
       await setSetting('savedBarbers', d.settings.savedBarbers)
       await setSetting('shopName', d.settings.shopName || 'Badboy Barber')
+      await setSetting('sheetUrl', d.settings.sheetUrl || '')
+      await setSetting('autoSheet', d.settings.autoSheet || false)
+      await setSetting('autoSync', d.settings.autoSync || false)
     }
   }
 }

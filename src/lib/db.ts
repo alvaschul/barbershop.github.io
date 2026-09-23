@@ -141,16 +141,22 @@ export async function setSetting<T = unknown>(key: string, value: T): Promise<vo
 }
 
 export async function allSettings(): Promise<Settings> {
-  const [savedBarbers, syncEndpoint, syncToken, shopName] = await Promise.all([
+  const [savedBarbers, syncEndpoint, syncToken, shopName, sheetUrl, autoSheet, autoSync] = await Promise.all([
     getSetting<string[]>('savedBarbers'),
     getSetting<string>('syncEndpoint'),
     getSetting<string>('syncToken'),
     getSetting<string>('shopName'),
+    getSetting<string>('sheetUrl'),
+    getSetting<boolean>('autoSheet'),
+    getSetting<boolean>('autoSync'),
   ])
   return {
     savedBarbers: Array.isArray(savedBarbers) ? savedBarbers : [],
     syncEndpoint: syncEndpoint ?? '',
     syncToken: syncToken ?? '',
     shopName: shopName ?? 'Badboy Barber',
+    sheetUrl: sheetUrl ?? '',
+    autoSheet: autoSheet ?? false,
+    autoSync: autoSync ?? false,
   }
 }

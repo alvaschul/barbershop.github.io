@@ -4,6 +4,8 @@ import { fmtRp, fmtK } from '../lib/money'
 import { todayStr, yesterdayStr, isoTime } from '../lib/date'
 import { buildCsv, downloadCsv } from '../lib/csv'
 import { buildDailyReport, whatsappUrl } from '../lib/report'
+import { sendReportToSheet } from '../lib/sheets'
+import * as XLSX from 'xlsx'
 import { Badge, Button, Chip, EmptyState, Field } from '../components/primitives'
 import { BarChart, RankList } from '../components/Chart'
 import { useToast } from '../components/Toast'
@@ -89,6 +91,67 @@ export default function Reports() {
     toast.push('CSV diunduh', 'success')
   }
 
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new()
+    const txnRows = txns.map((t, i) => ({
+      No: i + 1,
+      Waktu: isoTime(t.createdAt),
+      ID: `#${t.id}`,
+      Total: t.totalAmount,
+      Tunai: t.cashAmount,
+      QRIS: t.qrisAmount,
+      Kembalian: t.changeAmount,
+      Metode: t.cashAmount > 0 ? 'TUNAI' : t.qrisAmount > 0 ? 'QRIS' : '-',
+      Catatan: t.notes || '-',
+    }))
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txnRows), 'Transaksi')
+    const rincianRows = breakdown.map((b) => ({
+      Nama: b.name,
+      Kategori: b.category === 'service' ? 'Service' : 'Product',
+      Jumlah: b.quantity,
+      Total: b.total,
+    }))
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rincianRows), 'Rincian')
+    XLSX.writeFile(wb, `laporan-${date}.xlsx`)
+    toast.push('Excel diunduh', 'success')
+  }
+
+  const sendToSheet = async () => {
+    if (!checkValid()) {
+      toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
+      return
+    }
+    if (!settings.sheetUrl.trim()) {
+      toast.push('Atur URL Google Apps Script di Pengaturan > Sync dulu.', 'error')
+      return
+    }
+    try {
+      await sendReportToSheet(settings.sheetUrl, {
+        source: 'badboy-barber-pages',
+        type: 'report',
+        meta: { shopName: settings.shopName },
+        date,
+        cabang,
+        barbers: selected,
+        awal,
+        free,
+        text,
+        summary: {
+          totalTransactions: s.totalTransactions,
+          totalRevenue: s.totalRevenue,
+          totalCash: s.totalCash,
+          totalQris: s.totalQris,
+          totalChange: s.totalChange,
+          totalSales: s.totalSales,
+          totalProducts: s.totalProducts,
+        },
+      })
+      toast.push('Rekapan terkirim ke sheet', 'success')
+    } catch {
+      toast.push('Gagal mengirim ke sheet.', 'error')
+    }
+  }
+
   const copyReport = async () => {
     if (!checkValid()) {
       toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
@@ -165,7 +228,10 @@ export default function Reports() {
             <div className="card-title">Transaksi</div>
             <div className="card-sub">{s.totalTransactions} transaksi · {itemCount} item</div>
           </div>
-          <Button variant="outline" size="sm" icon="download" onClick={exportCsv}>CSV</Button>
+          <div className="head-actions">
+            <Button variant="outline" size="sm" icon="download" onClick={exportCsv}>CSV</Button>
+            <Button variant="outline" size="sm" icon="download" onClick={exportExcel}>Excel</Button>
+          </div>
         </div>
         {txns.length === 0 ? (
           <EmptyState icon="inbox" title="Belum ada transaksi tanggal ini" />
@@ -290,6 +356,7 @@ export default function Reports() {
           <textarea className="textarea" readOnly value={text} />
         </Field>
         <div className="head-actions">
+          <Button variant="outline" icon="upload" onClick={sendToSheet}>Kirim ke sheet</Button>
           <Button variant="outline" onClick={copyReport}>Salin</Button>
           <Button variant="primary" onClick={openWhatsApp}>WhatsApp</Button>
         </div>

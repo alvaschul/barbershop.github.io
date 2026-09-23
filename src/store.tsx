@@ -21,6 +21,7 @@ import {
 import { hashPin, randomSalt, verifyPin } from './lib/crypto'
 import { downloadBackup, buildBackup, isBackupFile, restoreBackup } from './lib/backup'
 import { syncNow } from './lib/sync'
+import { sendTransactionToSheet } from './lib/sheets'
 import { todayStr, addDays, lastNDates, monthKey } from './lib/date'
 import type {
   Branch,
@@ -36,8 +37,49 @@ import type {
   TxnItem,
   User,
 } from './types'
+import { APP_KEY } from './types'
 
 const SESSION_KEY = 'bb_session_v2'
+
+async function afterSale(args: {
+  input: { lines: CartLine[]; method: 'cash' | 'qris'; notes: string; branchId: number | null }
+  txnId: number
+  date: string
+  createdAt: string
+  totalAmount: number
+  cashAmount: number
+  qrisAmount: number
+  settings: Settings
+  branches: Branch[]
+}): Promise<void> {
+  const { input, txnId, date, createdAt, totalAmount, cashAmount, qrisAmount, settings, branches } = args
+
+  if (settings.sheetUrl && settings.autoSheet) {
+    const branch = input.branchId ? (branches.find((b) => b.id === input.branchId)?.name ?? '') : ''
+    const payload = {
+      source: APP_KEY,
+      type: 'txn' as const,
+      meta: { shopName: settings.shopName, branch },
+      txn: {
+        id: txnId,
+        date,
+        createdAt,
+        method: input.method === 'qris' ? 'qris' : 'cash',
+        total: totalAmount,
+        cash: cashAmount,
+        qris: qrisAmount,
+        change: 0,
+        notes: input.notes,
+        lines: input.lines.map((l) => ({ name: l.name, category: l.category, qty: l.qty, price: l.price, total: l.price * l.qty })),
+      },
+    }
+    void sendTransactionToSheet(settings.sheetUrl, payload).catch(() => {})
+  }
+
+  if (settings.syncEndpoint && settings.autoSync) {
+    void syncNow(settings.syncEndpoint, settings.syncToken).catch(() => {})
+  }
+}
 
 interface Session {
   userId: number
@@ -131,7 +173,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Item[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [txnItems, setTxnItems] = useState<TxnItem[]>([])
-  const [settings, setSettings] = useState<Settings>({ savedBarbers: [], syncEndpoint: '', syncToken: '', shopName: 'Badboy Barber' })
+  const [settings, setSettings] = useState<Settings>({
+    savedBarbers: [],
+    syncEndpoint: '',
+    syncToken: '',
+    shopName: 'Badboy Barber',
+    sheetUrl: '',
+    autoSheet: false,
+    autoSync: false,
+  })
   const [checkouts, setCheckouts] = useState<CartLine[]>([])
 
   const refresh = useCallback(async () => {
@@ -370,6 +420,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const cashAmount = input.method === 'cash' ? totalAmount : 0
       const qrisAmount = input.method === 'qris' ? totalAmount : 0
       const date = todayStr()
+      const createdAt = new Date().toISOString()
       const txnId = await addRow('transactions', {
         userId: session.id,
         branchId: input.branchId,
@@ -379,7 +430,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         changeAmount: 0,
         notes: input.notes,
         date,
-        createdAt: new Date().toISOString(),
+        createdAt,
       })
       for (const line of input.lines) {
         await addRow('transactionItems', {
@@ -391,6 +442,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           quantity: line.qty,
         })
       }
+      afterSale({ input, txnId, date, createdAt, totalAmount, cashAmount, qrisAmount, settings, branches })
       await refresh()
       const t = transactions.find((x) => x.id === txnId) ?? {
         id: txnId,
@@ -402,11 +454,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         changeAmount: 0,
         notes: input.notes,
         date,
-        createdAt: new Date().toISOString(),
+        createdAt,
       }
       return t
     },
-    [session, transactions, refresh]
+    [session, transactions, refresh, settings, branches]
   )
 
   const txnItemsForDate = useCallback(
@@ -546,6 +598,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (patch.syncToken !== undefined) await setSetting('syncToken', patch.syncToken)
       if (patch.shopName !== undefined) await setSetting('shopName', patch.shopName)
       if (patch.savedBarbers !== undefined) await setSetting('savedBarbers', patch.savedBarbers)
+      if (patch.sheetUrl !== undefined) await setSetting('sheetUrl', patch.sheetUrl)
+      if (patch.autoSheet !== undefined) await setSetting('autoSheet', patch.autoSheet)
+      if (patch.autoSync !== undefined) await setSetting('autoSync', patch.autoSync)
       setSettings(next)
     },
     [settings]
