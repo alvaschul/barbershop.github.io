@@ -22,10 +22,7 @@ export function buildDailyReport(inp: ReportInput): string {
   const cabang = inp.cabang.trim() || 'cabang lain'
   const services = inp.lines.filter((l) => l.category === 'service')
   const products = inp.lines.filter((l) => l.category === 'product')
-  const g = (list: ReportLine[]) => {
-    if (!list.length) return ['\u2022- : *0*']
-    return list.map((l) => `\u2022${l.name} : *${l.quantity}*`)
-  }
+  const g = (list: ReportLine[]) => list.map((l) => `\u2022${l.name} : *${l.quantity}*`)
   const akhir = inp.awal - inp.qr - inp.um - inp.free
 
   const lines: string[] = []

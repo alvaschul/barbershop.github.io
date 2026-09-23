@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store'
 import { fmtRp, fmtK } from '../lib/money'
 import { todayStr, yesterdayStr, isoTime } from '../lib/date'
@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast'
 export default function Reports() {
   const {
     transactions,
+    branches,
     dailySummary,
     dailyBreakdown,
     dailyLines,
@@ -23,9 +24,25 @@ export default function Reports() {
   const toast = useToast()
 
   const [date, setDate] = useState(todayStr())
-  const [awal, setAwal] = useState(0)
+  const [cabang, setCabang] = useState('')
+  const [awal, setAwal] = useState(() => dailySummary(todayStr()).totalRevenue)
+  const [free, setFree] = useState(0)
   const [barberName, setBarberName] = useState('')
   const [selected, setSelected] = useState<string[]>([])
+  const [tried, setTried] = useState(false)
+  const lastDate = useRef(date)
+
+  const activeBranches = branches.filter((b) => b.isActive)
+
+  useEffect(() => {
+    if (cabang === '' && activeBranches.length) setCabang(activeBranches[0].name)
+  }, [branches, cabang, activeBranches])
+
+  useEffect(() => {
+    if (lastDate.current === date) return
+    lastDate.current = date
+    setAwal(dailySummary(date).totalRevenue)
+  }, [date, dailySummary])
 
   const s = dailySummary(date)
   const txns = transactions.filter((t) => t.date === date)
@@ -36,14 +53,26 @@ export default function Reports() {
 
   const text = buildDailyReport({
     date,
-    cabang: settings.shopName,
+    cabang,
     barbers: selected,
     awal,
     um: s.totalCash,
     qr: s.totalQris,
-    free: 0,
+    free,
     lines: dailyLines(date),
   })
+
+  const cabangError = cabang.trim() === ''
+  const awalError = Number.isNaN(awal) || awal < 0
+  const barberError = selected.length === 0
+
+  const checkValid = () => {
+    setTried(true)
+    if (cabangError) return false
+    if (awalError) return false
+    if (barberError) return false
+    return true
+  }
 
   const toggleBarber = (name: string) =>
     setSelected((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]))
@@ -61,11 +90,21 @@ export default function Reports() {
   }
 
   const copyReport = async () => {
+    if (!checkValid()) {
+      toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
+      return
+    }
     await navigator.clipboard.writeText(text)
     toast.push('Disalin', 'success')
   }
 
-  const openWhatsApp = () => window.open(whatsappUrl(text), '_blank')
+  const openWhatsApp = () => {
+    if (!checkValid()) {
+      toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
+      return
+    }
+    window.open(whatsappUrl(text), '_blank')
+  }
 
   return (
     <div>
@@ -204,8 +243,24 @@ export default function Reports() {
             <div className="card-sub">Text report siap kirim ke grup WhatsApp</div>
           </div>
         </div>
-        <Field label="Awal / Uang awal">
+        <Field label="Cabang">
+          <div className="grid-2">
+            <input className="input" value={cabang} onChange={(e) => setCabang(e.target.value)} placeholder="Nama cabang" />
+            <select className="select" value={activeBranches.some((b) => b.name === cabang) ? cabang : ''} onChange={(e) => { if (e.target.value) setCabang(e.target.value) }}>
+              <option value="">Pilih cabang&hellip;</option>
+              {activeBranches.map((b) => (
+                <option key={b.id} value={b.name}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          {tried && cabangError && <span className="small" style={{ color: 'var(--danger)' }}>Isi nama cabang.</span>}
+        </Field>
+        <Field label="Uang awal (total pendapatan hari ini)">
           <input type="number" inputMode="numeric" className="input" value={awal} onChange={(e) => setAwal(Number(e.target.value) || 0)} />
+          {tried && awalError && <span className="small" style={{ color: 'var(--danger)' }}>Uang awal harus angka 0 atau lebih.</span>}
+        </Field>
+        <Field label="Free Haircut">
+          <input type="number" inputMode="numeric" className="input" value={free} onChange={(e) => setFree(Number(e.target.value) || 0)} />
         </Field>
         <Field label="Kapster tersimpan">
           <div className="head-actions">
@@ -229,6 +284,7 @@ export default function Reports() {
               ))
             )}
           </div>
+          {tried && barberError && <span className="small" style={{ color: 'var(--danger)' }}>Pilih minimal satu kapster.</span>}
         </Field>
         <Field label="Pratinjau">
           <textarea className="textarea" readOnly value={text} />
