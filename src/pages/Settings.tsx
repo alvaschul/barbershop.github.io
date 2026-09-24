@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useApp, type DbScanRow, type DbView } from '../store'
 import { Badge, Button, Chip, EmptyState, Field } from '../components/primitives'
-import { Icon } from '../components/Icons'
+import { Icon, type IconName } from '../components/Icons'
 import { Modal } from '../components/Modal'
 import { Confirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
@@ -12,12 +12,24 @@ type Section = 'users' | 'shop' | 'backup' | 'sync' | 'db'
 
 const PAGE_SIZE = 50
 
-const TABS: Array<{ id: Section; label: string }> = [
-  { id: 'users', label: 'Akun & PIN' },
-  { id: 'shop', label: 'Toko & Barbers' },
-  { id: 'backup', label: 'Data (backup & restore)' },
-  { id: 'sync', label: 'Sync (opsional)' },
-  { id: 'db', label: 'Database (admin)' },
+const GROUPS: Array<{ id: string; label: string; rows: Array<{ id: Section; icon: IconName; label: string; danger?: boolean }> }> = [
+  {
+    id: 'umum',
+    label: 'Umum',
+    rows: [
+      { id: 'users', icon: 'users', label: 'Akun & PIN' },
+      { id: 'shop', icon: 'store', label: 'Toko & Barbers' },
+      { id: 'backup', icon: 'download', label: 'Data (backup & restore)' },
+    ],
+  },
+  {
+    id: 'sistem',
+    label: 'Sync & sistem',
+    rows: [
+      { id: 'sync', icon: 'sync', label: 'Sync (opsional)' },
+      { id: 'db', icon: 'database', label: 'Database (admin)', danger: true },
+    ],
+  },
 ]
 
 function fmtDate(iso: string): string {
@@ -55,7 +67,7 @@ export default function Settings() {
   } = useApp()
   const toast = useToast()
 
-  const [section, setSection] = useState<Section>('users')
+  const [view, setView] = useState<'home' | Section>('home')
 
   const [resetTarget, setResetTarget] = useState<User | null>(null)
   const [resetPinVal, setResetPinVal] = useState('')
@@ -77,7 +89,7 @@ export default function Settings() {
 
   const [tables, setTables] = useState<Array<{ table: string; rows: number }>>([])
   const [dbTable, setDbTable] = useState('users')
-  const [view, setView] = useState<DbView | null>(null)
+  const [dbView, setDbView] = useState<DbView | null>(null)
   const [page, setPage] = useState(0)
   const [editRow, setEditRow] = useState<DbScanRow | null>(null)
   const [editValues, setEditValues] = useState<Record<string, string>>({})
@@ -116,7 +128,7 @@ export default function Settings() {
   useEffect(() => {
     let alive = true
     dbScan(dbTable, PAGE_SIZE, page * PAGE_SIZE).then((v) => {
-      if (alive) setView(v)
+      if (alive) setDbView(v)
     })
     return () => {
       alive = false
@@ -127,7 +139,7 @@ export default function Settings() {
 
   const refreshDb = async () => {
     const v = await dbScan(dbTable, PAGE_SIZE, 0)
-    setView(v)
+    setDbView(v)
     setTables(await dbList())
   }
 
@@ -239,7 +251,7 @@ export default function Settings() {
 
   const saveEdit = async () => {
     if (!editRow) return
-    const cols = view?.editable ?? []
+    const cols = dbView?.editable ?? []
     const values: Record<string, unknown> = {}
     for (const c of cols) {
       const orig = editRow[c]
@@ -299,19 +311,38 @@ export default function Settings() {
         </div>
       </div>
 
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`tab${section === t.id ? ' tab-active' : ''}`}
-            onClick={() => setSection(t.id)}
-          >
-            {t.label}
+      {view === 'home' ? (
+        <div className="settings-detail">
+          {GROUPS.map((g) => (
+            <div className="settings-group" key={g.id}>
+              <div className="settings-group-title">{g.label}</div>
+              <div className="settings-list">
+                {g.rows.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={'settings-row' + (r.danger ? ' settings-row-danger' : '')}
+                    onClick={() => setView(r.id)}
+                  >
+                    <Icon name={r.icon} size={20} />
+                    <span style={{ flex: 1, textAlign: 'left' }}>{r.label}</span>
+                    <Icon name="chevron-right" size={18} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="settings-detail">
+          <button type="button" className="settings-back" onClick={() => setView('home')}>
+            <span style={{ display: 'inline-flex', transform: 'rotate(90deg)' }}>
+              <Icon name="chevron-down" size={16} />
+            </span>
+            Kembali
           </button>
-        ))}
-      </nav>
 
-      {section === 'users' && (
+          {view === 'users' && (
         <section>
           <div className="row-list section-gap">
             {users.map((u) => {
@@ -363,7 +394,7 @@ export default function Settings() {
         </section>
       )}
 
-      {section === 'shop' && (
+      {view === 'shop' && (
         <section>
           <div className="card section-gap">
             <div className="card-head">
@@ -423,7 +454,7 @@ export default function Settings() {
         </section>
       )}
 
-      {section === 'backup' && (
+      {view === 'backup' && (
         <section>
           <div className="card">
             <div className="card-head">
@@ -448,7 +479,7 @@ export default function Settings() {
         </section>
       )}
 
-      {section === 'sync' && (
+      {view === 'sync' && (
         <section>
           <div className="card">
             <div className="card-head">
@@ -534,7 +565,7 @@ export default function Settings() {
         </section>
       )}
 
-      {section === 'db' && (
+      {view === 'db' && (
         <section>
           <div className="chips section-gap">
             {tables.map((t) => (
@@ -546,7 +577,7 @@ export default function Settings() {
           <p className="small section-gap" style={{ color: 'var(--danger)' }}>
             Mengedit data mentah dapat merusak laporan.
           </p>
-          {!view ? (
+          {!dbView ? (
             <p className="small muted">Memuat…</p>
           ) : (
             <>
@@ -554,23 +585,23 @@ export default function Settings() {
                 <table className="data">
                   <thead>
                     <tr>
-                      {view.columns.map((c) => (
+                      {dbView.columns.map((c) => (
                         <th key={c}>{c}</th>
                       ))}
                       <th />
                     </tr>
                   </thead>
                   <tbody>
-                    {view.rows.length === 0 ? (
+                    {dbView.rows.length === 0 ? (
                       <tr>
-                        <td className="small muted" colSpan={view.columns.length + 1}>
+                        <td className="small muted" colSpan={dbView.columns.length + 1}>
                           Tidak ada baris.
                         </td>
                       </tr>
                     ) : (
-                      view.rows.map((r) => (
+                      dbView.rows.map((r) => (
                         <tr key={r.id}>
-                          {view.columns.map((c) => (
+                          {dbView.columns.map((c) => (
                             <td key={c}>{cellText(r[c])}</td>
                           ))}
                           <td>
@@ -580,7 +611,7 @@ export default function Settings() {
                                 size="sm"
                                 icon="edit"
                                 aria-label={`Edit baris ${r.id}`}
-                                onClick={() => openEdit(r, view.editable)}
+                                onClick={() => openEdit(r, dbView.editable)}
                               />
                               <Button
                                 variant="ghost"
@@ -607,12 +638,12 @@ export default function Settings() {
                   Prev
                 </Button>
                 <span className="small muted">
-                  {page + 1} / {Math.max(1, Math.ceil(view.total / PAGE_SIZE))} · {view.total} baris
+                  {page + 1} / {Math.max(1, Math.ceil(dbView.total / PAGE_SIZE))} · {dbView.total} baris
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={(page + 1) * PAGE_SIZE >= view.total}
+                  disabled={(page + 1) * PAGE_SIZE >= dbView.total}
                   onClick={() => setPage((p) => p + 1)}
                 >
                   Next
@@ -624,12 +655,15 @@ export default function Settings() {
             </>
           )}
         </section>
+          )}
+        </div>
       )}
 
       <Modal
         open={!!resetTarget}
         onClose={() => setResetTarget(null)}
         title="Reset PIN"
+        sheet
         actions={
           <>
             <Button variant="outline" onClick={() => setResetTarget(null)}>
@@ -657,6 +691,7 @@ export default function Settings() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         title="Tambah pengguna"
+        sheet
         actions={
           <>
             <Button variant="outline" onClick={() => setAddOpen(false)}>
@@ -720,7 +755,7 @@ export default function Settings() {
           </>
         }
       >
-        {(view?.editable ?? []).map((col) => (
+        {(dbView?.editable ?? []).map((col) => (
           <Field key={col} label={col}>
             <input
               className="input"

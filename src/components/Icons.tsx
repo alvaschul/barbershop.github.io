@@ -22,6 +22,7 @@ export type IconName =
   | 'close'
   | 'check'
   | 'chevron-down'
+  | 'chevron-right'
   | 'grid'
   | 'inbox'
   | 'store'
@@ -179,6 +180,7 @@ const NODES: Record<IconName, ReactNode> = {
   ),
   check: <path d="M20 6 9 17l-5-5" />,
   'chevron-down': <path d="m6 9 6 6 6-6" />,
+  'chevron-right': <path d="m9 6 6 6-6 6" />,
   grid: (
     <>
       <rect width="18" height="18" x="3" y="3" rx="2" />
