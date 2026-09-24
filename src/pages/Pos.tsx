@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../store'
 import { fmtRp } from '../lib/money'
 import { fmtDayLong, todayStr } from '../lib/date'
-import { Button, EmptyState } from '../components/primitives'
+import { Button, Chip, EmptyState } from '../components/primitives'
 import { Icon } from '../components/Icons'
+import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import type { Item } from '../types'
 
@@ -12,10 +13,12 @@ export default function Pos() {
   const toast = useToast()
   const [branch, setBranch] = useState(0)
   const [search, setSearch] = useState('')
+  const [cat, setCat] = useState<'all' | 'service' | 'product'>('all')
   const [method, setMethod] = useState<'cash' | 'qris'>('cash')
   const [notes, setNotes] = useState('')
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
   const timerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -30,13 +33,15 @@ export default function Pos() {
     const q = search.trim().toLowerCase()
     return items
       .filter((it) => it.isActive)
+      .filter((it) => !it.isHidden)
       .filter((it) => branch === 0 || it.branchId === branch)
+      .filter((it) => cat === 'all' || it.category === cat)
       .filter((it) => q === '' || it.name.toLowerCase().includes(q))
       .sort((a, b) => {
         if (a.category !== b.category) return a.category === 'service' ? -1 : 1
         return a.name.localeCompare(b.name)
       })
-  }, [items, branch, search])
+  }, [items, branch, search, cat])
 
   const total = checkouts.reduce((s, l) => s + l.price * l.qty, 0)
 
@@ -86,6 +91,84 @@ export default function Pos() {
     }
   }
 
+  const renderCheckout = () => {
+    if (paid) {
+      return (
+        <div className="paid-panel">
+          <div className="paid-icon">
+            <Icon name="check" size={30} />
+          </div>
+          <div className="auth-title">Transaksi tersimpan</div>
+          <div className="small muted">Keranjang dikosongkan</div>
+        </div>
+      )
+    }
+    return (
+      <>
+        <div className="card-title">Transaksi</div>
+        <div className="card-sub">{settings.shopName}</div>
+
+        <div className="cart-list">
+          {checkouts.length === 0 ? (
+            <EmptyState icon="inbox" title="Keranjang kosong" />
+          ) : (
+            checkouts.map((l) => (
+              <div className="cart-line" key={l.itemId}>
+                <div className="row-main">
+                  <div className="row-title">{l.name}</div>
+                  <div className="small muted">{l.category.toUpperCase()}</div>
+                </div>
+                <div className="cart-qty-wrap">
+                  <button type="button" className="qty-btn" aria-label={`Kurangi ${l.name}`} onClick={() => bump(l.itemId, -1)}>−</button>
+                  <span className="cart-qty">{l.qty}</span>
+                  <button type="button" className="qty-btn" aria-label={`Tambah ${l.name}`} onClick={() => bump(l.itemId, 1)}>+</button>
+                </div>
+                <div className="num bold">{fmtRp(l.price * l.qty)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="divider" />
+        <div className="kpi-value num section-gap">{fmtRp(total)}</div>
+        <div className="field">
+          <input
+            className="input"
+            placeholder="Catatan (opsional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+        <div className="grid-2 section-gap">
+          <Button
+            variant={method === 'cash' ? 'primary' : 'outline'}
+            icon="calculator"
+            type="button"
+            onClick={() => setMethod('cash')}
+          >
+            TUNAI
+          </Button>
+          <Button
+            variant={method === 'qris' ? 'primary' : 'outline'}
+            icon="qrcode"
+            type="button"
+            onClick={() => setMethod('qris')}
+          >
+            QRIS
+          </Button>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={checkouts.length === 0 || paying}
+          onClick={handlePay}
+        >
+          Bayar
+        </button>
+      </>
+    )
+  }
+
   return (
     <>
       <div className="page-head">
@@ -117,100 +200,57 @@ export default function Pos() {
         </div>
       </div>
 
-      <div className="pos-grid">
-        <div className="menu-list">
-          {visible.map((it) => (
-            <button
-              key={it.id}
-              type="button"
-              className={it.isHidden ? 'menu-card hidden-item' : 'menu-card'}
-              style={it.isHidden ? { cursor: 'default' } : undefined}
-              disabled={it.isHidden}
-              onClick={it.isHidden ? undefined : () => addToCart(it)}
-            >
-              <span className="menu-cat">{it.category.toUpperCase()}</span>
-              <span className="menu-name">{it.name}</span>
-              <span className="menu-price">{fmtRp(it.price)}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="card checkout-card">
-          <div className="card-title">Transaksi</div>
-          <div className="card-sub">{settings.shopName}</div>
-
-          <div className="cart-list">
-            {checkouts.length === 0 ? (
-              <EmptyState icon="inbox" title="Keranjang kosong" />
-            ) : (
-              checkouts.map((l) => (
-                <div className="cart-line" key={l.itemId}>
-                  <div className="row-main">
-                    <div className="row-title">{l.name}</div>
-                    <div className="small muted">{l.category.toUpperCase()}</div>
-                  </div>
-                  <div className="cart-qty-wrap">
-                    <button type="button" className="qty-btn" onClick={() => bump(l.itemId, -1)}>
-                      −
-                    </button>
-                    <span className="cart-qty">{l.qty}</span>
-                    <button type="button" className="qty-btn" onClick={() => bump(l.itemId, 1)}>
-                      +
-                    </button>
-                  </div>
-                  <div className="num bold">{fmtRp(l.price * l.qty)}</div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="divider" />
-          <div className="kpi-value num section-gap">{fmtRp(total)}</div>
-          <div className="field">
-            <input
-              className="input"
-              placeholder="Catatan (opsional)"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-          <div className="grid-2 section-gap">
-            <Button
-              variant={method === 'cash' ? 'primary' : 'outline'}
-              icon="calculator"
-              type="button"
-              onClick={() => setMethod('cash')}
-            >
-              TUNAI
-            </Button>
-            <Button
-              variant={method === 'qris' ? 'primary' : 'outline'}
-              icon="qrcode"
-              type="button"
-              onClick={() => setMethod('qris')}
-            >
-              QRIS
-            </Button>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-block"
-            disabled={checkouts.length === 0 || paying}
-            onClick={handlePay}
-          >
-            Bayar
-          </button>
-        </div>
+      <div className="head-actions section-gap">
+        {(['all', 'service', 'product'] as const).map((c) => (
+          <Chip key={c} selected={cat === c} onClick={() => setCat(c)}>
+            {c === 'all' ? 'Semua' : c === 'service' ? 'Service' : 'Product'}
+          </Chip>
+        ))}
       </div>
 
-      {paid && (
-        <div className="modal-backdrop">
-          <div className="auth-logo">
-            <Icon name="check" size={52} />
-            <div className="auth-title">Berhasil</div>
+      <div className="pos-grid">
+        {visible.length === 0 ? (
+          <div className="card section-gap">
+            <EmptyState icon="inbox" title="Belum ada menu" body="Tambahkan item di tab Layanan." />
           </div>
+        ) : (
+          <div className="menu-list">
+            {visible.map((it) => (
+              <button key={it.id} type="button" className="menu-card" onClick={() => addToCart(it)}>
+                <span className="menu-cat">{it.category.toUpperCase()}</span>
+                <span className="menu-name">{it.name}</span>
+                <span className="menu-price">{fmtRp(it.price)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="card checkout-card">{renderCheckout()}</div>
+      </div>
+
+      {checkouts.length > 0 && !paid && (
+        <div className="cart-bar">
+          <span className="cart-total">{fmtRp(total)}</span>
+          <span className="small muted" style={{ color: 'rgba(255,255,255,0.72)' }}>
+            {checkouts.reduce((s, l) => s + l.qty, 0)} item
+          </span>
+          <Button variant="primary" onClick={() => setCartOpen(true)}>
+            Lihat &amp; bayar
+          </Button>
         </div>
       )}
+
+      <Modal
+        open={cartOpen}
+        sheet
+        title="Transaksi"
+        onClose={() => {
+          setCartOpen(false)
+          setPaid(false)
+        }}
+      >
+        {renderCheckout()}
+      </Modal>
     </>
   )
 }
