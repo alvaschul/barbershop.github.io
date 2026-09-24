@@ -47,7 +47,7 @@ function Shell() {
         {tab === 'settings' && session.role === 'admin' && <Settings />}
       </main>
 
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" aria-label="Navigasi utama (ponsel)">
         {primary && (
           <button
             key={primary.id}
