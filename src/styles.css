@@ -5,21 +5,21 @@
   --surface-2: #ECEFE9;
   --ink: #14241E;
   --ink-2: #46584F;
-  --muted: #83938A;
+  --muted: #5F6F65;
   --line: #E2E7DF;
   --accent: #0D9E6C;
-  --accent-strong: #0B7F58;
+  --accent-strong: #0A7853;
   --accent-soft: rgba(13, 158, 108, 0.10);
   --accent-ring: rgba(13, 158, 108, 0.28);
-  --qris: #0891B2;
-  --qris-soft: rgba(8, 145, 178, 0.10);
+  --qris: #0B7494;
+  --qris-soft: rgba(11, 116, 148, 0.10);
   --cash: #B45309;
   --cash-soft: rgba(180, 83, 9, 0.10);
   --danger: #DC2626;
   --danger-soft: rgba(220, 38, 38, 0.10);
   --warn: #A16207;
   --warn-soft: rgba(161, 98, 7, 0.10);
-  --muted-strong: #66766D;
+  --muted-strong: #55655C;
   --radius-sm: 10px;
   --radius: 16px;
   --radius-lg: 22px;
@@ -76,7 +76,7 @@ button {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 
 h1, h2, h3, h4 {
@@ -173,7 +173,7 @@ h1, h2, h3, h4 {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
 }
 
@@ -211,7 +211,7 @@ h1, h2, h3, h4 {
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover:not(:disabled) {
-    background: var(--accent-strong);
+    background: #0A6E4C;
   }
 
   .btn-outline:hover:not(:disabled) {
@@ -396,7 +396,7 @@ h1, h2, h3, h4 {
 .chip-selected {
   background: var(--accent-soft);
   border-color: var(--accent-ring);
-  color: var(--accent);
+  color: var(--accent-strong);
   font-weight: 700;
 }
 
@@ -603,6 +603,15 @@ table.data .num {
 
 @media (min-width: 900px) {
   .modal.sheet {
+    display: block;
+    border-radius: var(--radius-lg);
+    max-width: 480px;
+    padding: 22px;
+    box-shadow: var(--shadow-pop);
+    animation: popIn 200ms var(--ease-out);
+  }
+
+  .modal.sheet .sheet-handle {
     display: none;
   }
 }
@@ -730,7 +739,7 @@ table.data .num {
 
 .tab-active {
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-strong);
   box-shadow: var(--shadow-lift);
   font-weight: 800;
 }
@@ -768,7 +777,7 @@ table.data .num {
 }
 
 .nav-item-active {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .nav-item-primary .nav-item {
@@ -807,7 +816,7 @@ table.data .num {
 }
 
 .nav-primary-active .nav-pill {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
   box-shadow: 0 6px 18px var(--accent-ring);
 }
@@ -1046,6 +1055,27 @@ table.data .num {
   .cart-bar {
     display: none;
   }
+}
+
+.paid-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 12px;
+  text-align: center;
+}
+
+.paid-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  animation: popIn 200ms var(--ease-out);
 }
 
 .cart-total {
@@ -1302,4 +1332,20 @@ table.data .num {
 .report-preview {
   font-family: var(--font-body);
   line-height: 1.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .cart-bar, .modal, .toast { animation: none !important; opacity: 0.97; }
+}
+
+.nav-item:focus-visible,
+.rail-item:focus-visible,
+.settings-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

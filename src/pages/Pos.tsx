@@ -83,7 +83,10 @@ export default function Pos() {
       setNotes('')
       setPaid(true)
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
-      timerRef.current = window.setTimeout(() => setPaid(false), 2400)
+      timerRef.current = window.setTimeout(() => {
+        setPaid(false)
+        setCartOpen(false)
+      }, 2400)
     } catch (e) {
       toast.push(e instanceof Error ? e.message : String(e), 'error')
     } finally {
