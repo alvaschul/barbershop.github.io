@@ -36,6 +36,7 @@ function Shell() {
     { id: 'settings', label: 'Pengaturan', icon: 'settings', adminOnly: true },
   ]
   const tabs = allTabs.filter((t) => !t.adminOnly || session.role === 'admin')
+  const primary = tabs.find((t) => t.id === 'pos')
 
   return (
     <div className="app">
@@ -45,11 +46,40 @@ function Shell() {
         {tab === 'reports' && <Reports />}
         {tab === 'settings' && session.role === 'admin' && <Settings />}
       </main>
+
       <nav className="bottom-nav">
+        {primary && (
+          <button
+            key={primary.id}
+            className={'nav-primary' + (tab === primary.id ? ' nav-primary-active' : '')}
+            onClick={() => setTab(primary.id)}
+          >
+            <span className="nav-pill">
+              <Icon name={primary.icon} />
+              <span>{primary.label}</span>
+            </span>
+          </button>
+        )}
+        {tabs
+          .filter((t) => t.id !== primary?.id)
+          .map((t) => (
+            <button
+              key={t.id}
+              className={'nav-item' + (tab === t.id ? ' nav-item-active' : '')}
+              onClick={() => setTab(t.id)}
+            >
+              <Icon name={t.icon} />
+              <span>{t.label}</span>
+              {tab === t.id && <span className="nav-dot" aria-hidden="true" />}
+            </button>
+          ))}
+      </nav>
+
+      <nav className="nav-rail" aria-label="Navigasi utama">
         {tabs.map((t) => (
           <button
             key={t.id}
-            className={'nav-item' + (tab === t.id ? ' nav-item-active' : '')}
+            className={'rail-item' + (tab === t.id ? ' rail-item-active' : '')}
             onClick={() => setTab(t.id)}
           >
             <Icon name={t.icon} />
