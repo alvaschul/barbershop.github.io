@@ -8,6 +8,7 @@ export function Modal({
   children,
   actions,
   wide,
+  sheet,
 }: {
   open: boolean
   onClose: () => void
@@ -15,6 +16,7 @@ export function Modal({
   children: ReactNode
   actions?: ReactNode
   wide?: boolean
+  sheet?: boolean
 }) {
   useEffect(() => {
     if (!open) return
@@ -30,10 +32,11 @@ export function Modal({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="modal"
-        style={wide ? { maxWidth: '620px' } : undefined}
+        className={'modal' + (wide ? ' wide' : '') + (sheet ? ' sheet' : '')}
+        style={wide && !sheet ? { maxWidth: '620px' } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
+        {sheet && <div className="sheet-handle" aria-hidden="true" />}
         <div className="modal-head">
           <h3 className="modal-title">{title}</h3>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
