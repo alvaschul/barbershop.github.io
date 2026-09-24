@@ -26,6 +26,7 @@ export default function Reports() {
   const toast = useToast()
 
   const [date, setDate] = useState(todayStr())
+  const [tab, setTab] = useState<'ringkasan' | 'transaksi' | 'rekapan'>('ringkasan')
   const [cabang, setCabang] = useState('')
   const [awal, setAwal] = useState(() => dailySummary(todayStr()).totalRevenue)
   const [free, setFree] = useState(0)
@@ -203,106 +204,125 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="grid-2 section-gap">
-        <section className="card">
-          <div className="card-head">
-            <div className="card-title">Tren 14 hari</div>
+      <nav className="tabs">
+        {(['ringkasan', 'transaksi', 'rekapan'] as const).map((t) => (
+          <button
+            key={t}
+            className={'tab' + (tab === t ? ' tab-active' : '')}
+            onClick={() => setTab(t)}
+          >
+            {t === 'ringkasan' ? 'Ringkasan' : t === 'transaksi' ? 'Transaksi' : 'Rekapan'}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'ringkasan' && (
+        <>
+          <div className="grid-2 section-gap">
+            <section className="card">
+              <div className="card-head">
+                <div className="card-title">Tren 14 hari</div>
+              </div>
+              <BarChart data={chart} height={180} valueFormat={fmtK} showAxis />
+            </section>
+            <section className="card">
+              <div className="card-head">
+                <div className="card-title">Produk terlaris</div>
+              </div>
+              {top.length === 0 ? (
+                <EmptyState icon="inbox" title="Belum ada data" body="Tidak ada penjualan 24 jam terakhir." />
+              ) : (
+                <RankList items={top} />
+              )}
+            </section>
           </div>
-          <BarChart data={chart} height={180} valueFormat={fmtK} showAxis />
-        </section>
-        <section className="card">
+
+          <section className="card section-gap">
+            <div className="card-head">
+              <div>
+                <div className="card-title">Rincian / breakdown</div>
+                <div className="card-sub">Item terjual tanggal {date}</div>
+              </div>
+            </div>
+            {breakdown.length === 0 ? (
+              <EmptyState icon="inbox" title="Belum ada data" />
+            ) : (
+              <div className="row-list">
+                {breakdown.map((b) => (
+                  <div className="row" key={b.itemId}>
+                    <div className="row-main">
+                      <div className="row-title">{b.name}</div>
+                      <div className="row-sub">{b.category === 'service' ? 'Service' : 'Product'}</div>
+                    </div>
+                    <div className="row-actions">
+                      <span className="small muted">{b.quantity}×</span>
+                      <span className="bold num">{fmtRp(b.total)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {tab === 'transaksi' && (
+        <section className="card section-gap">
           <div className="card-head">
-            <div className="card-title">Produk terlaris</div>
+            <div>
+              <div className="card-title">Transaksi</div>
+              <div className="card-sub">{s.totalTransactions} transaksi · {itemCount} item · {date}</div>
+            </div>
+            <div className="head-actions">
+              <Button variant="outline" size="sm" icon="download" onClick={exportCsv}>CSV</Button>
+              <Button variant="outline" size="sm" icon="download" onClick={exportExcel}>Excel</Button>
+            </div>
           </div>
-          {top.length === 0 ? (
-            <EmptyState icon="inbox" title="Belum ada data" body="Tidak ada penjualan 24 jam terakhir." />
+          {txns.length === 0 ? (
+            <EmptyState icon="inbox" title="Belum ada transaksi tanggal ini" />
           ) : (
-            <RankList items={top} />
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>Waktu</th>
+                    <th>ID</th>
+                    <th>Items</th>
+                    <th className="num">Total</th>
+                    <th>Metode</th>
+                    <th>Catatan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {txns.map((t, i) => (
+                    <tr key={t.id}>
+                      <td>{i + 1}</td>
+                      <td>{isoTime(t.createdAt)}</td>
+                      <td className="num">#{t.id}</td>
+                      <td>{itemCount}</td>
+                      <td className="num">{fmtRp(t.totalAmount)}</td>
+                      <td>
+                        {t.cashAmount > 0 ? (
+                          <Badge tone="accent">TUNAI</Badge>
+                        ) : t.qrisAmount > 0 ? (
+                          <Badge tone="qris">QRIS</Badge>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                      <td className="muted">{t.notes || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
-      </div>
+      )}
 
-      <section className="card section-gap">
-        <div className="card-head">
-          <div>
-            <div className="card-title">Transaksi</div>
-            <div className="card-sub">{s.totalTransactions} transaksi · {itemCount} item</div>
-          </div>
-          <div className="head-actions">
-            <Button variant="outline" size="sm" icon="download" onClick={exportCsv}>CSV</Button>
-            <Button variant="outline" size="sm" icon="download" onClick={exportExcel}>Excel</Button>
-          </div>
-        </div>
-        {txns.length === 0 ? (
-          <EmptyState icon="inbox" title="Belum ada transaksi tanggal ini" />
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>No</th>
-                  <th>Waktu</th>
-                  <th>ID</th>
-                  <th>Items</th>
-                  <th className="num">Total</th>
-                  <th>Metode</th>
-                  <th>Catatan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {txns.map((t, i) => (
-                  <tr key={t.id}>
-                    <td>{i + 1}</td>
-                    <td>{isoTime(t.createdAt)}</td>
-                    <td className="num">#{t.id}</td>
-                    <td>{itemCount}</td>
-                    <td className="num">{fmtRp(t.totalAmount)}</td>
-                    <td>
-                      {t.cashAmount > 0 ? (
-                        <Badge tone="accent">TUNAI</Badge>
-                      ) : t.qrisAmount > 0 ? (
-                        <Badge tone="qris">QRIS</Badge>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                    <td className="muted">{t.notes || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="card section-gap">
-        <div className="card-head">
-          <div>
-            <div className="card-title">Rincian / breakdown</div>
-            <div className="card-sub">Item terjual tanggal {date}</div>
-          </div>
-        </div>
-        {breakdown.length === 0 ? (
-          <EmptyState icon="inbox" title="Belum ada data" />
-        ) : (
-          <div className="row-list">
-            {breakdown.map((b) => (
-              <div className="row" key={b.itemId}>
-                <div className="row-main">
-                  <div className="row-title">{b.name}</div>
-                  <div className="row-sub">{b.category === 'service' ? 'Service' : 'Product'}</div>
-                </div>
-                <div className="row-actions">
-                  <span className="small muted">{b.quantity}×</span>
-                  <span className="bold num">{fmtRp(b.total)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="card">
+      {tab === 'rekapan' && (
+        <section className="card">
         <div className="card-head">
           <div>
             <div className="card-title">Laporan harian</div>
@@ -319,11 +339,11 @@ export default function Reports() {
               ))}
             </select>
           </div>
-          {tried && cabangError && <span className="small" style={{ color: 'var(--danger)' }}>Isi nama cabang.</span>}
+          {tried && cabangError && <span className="field-error">Isi nama cabang.</span>}
         </Field>
         <Field label="Uang awal (total pendapatan hari ini)">
           <input type="number" inputMode="numeric" className="input" value={awal} onChange={(e) => setAwal(Number(e.target.value) || 0)} />
-          {tried && awalError && <span className="small" style={{ color: 'var(--danger)' }}>Uang awal harus angka 0 atau lebih.</span>}
+          {tried && awalError && <span className="field-error">Uang awal harus angka 0 atau lebih.</span>}
         </Field>
         <Field label="Free Haircut">
           <input type="number" inputMode="numeric" className="input" value={free} onChange={(e) => setFree(Number(e.target.value) || 0)} />
@@ -350,10 +370,10 @@ export default function Reports() {
               ))
             )}
           </div>
-          {tried && barberError && <span className="small" style={{ color: 'var(--danger)' }}>Pilih minimal satu kapster.</span>}
+          {tried && barberError && <span className="field-error">Pilih minimal satu kapster.</span>}
         </Field>
         <Field label="Pratinjau">
-          <textarea className="textarea" readOnly value={text} />
+          <textarea className="textarea report-preview" readOnly value={text} aria-label="Pratinjau laporan" />
         </Field>
         <div className="head-actions">
           <Button variant="outline" icon="upload" onClick={sendToSheet}>Kirim ke sheet</Button>
@@ -361,6 +381,7 @@ export default function Reports() {
           <Button variant="primary" onClick={openWhatsApp}>WhatsApp</Button>
         </div>
       </section>
+      )}
     </div>
   )
 }
