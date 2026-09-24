@@ -6,6 +6,7 @@ import { Badge, Button, Chip, EmptyState, Field } from '../components/primitives
 import { Confirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icons'
 import { Modal } from '../components/Modal'
+import { Toggle } from '../components/Toggle'
 import { useToast } from '../components/Toast'
 
 interface ItemForm {
@@ -33,6 +34,7 @@ export default function Items() {
   const [renameValue, setRenameValue] = useState('')
   const [branchError, setBranchError] = useState<string | null>(null)
   const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null)
+  const [branchesOpen, setBranchesOpen] = useState(false)
 
   const activeBranches = branches.filter((b) => b.isActive)
   const branchNameById = (id: number) => branches.find((b) => b.id === id)?.name ?? 'Tanpa cabang'
@@ -129,7 +131,9 @@ export default function Items() {
         <div className="row-list section-gap">
           {visible.map((it) => (
             <div className={it.isHidden ? 'row inactive' : 'row'} key={it.id}>
-              <Icon name={it.category === 'service' ? 'scissors' : 'store'} size={18} />
+              <div className={it.category === 'service' ? 'icon-tile service' : 'icon-tile product'}>
+                <Icon name={it.category === 'service' ? 'scissors' : 'store'} size={20} />
+              </div>
               <div className="row-main">
                 <div className="row-title">
                   {it.name}
@@ -150,26 +154,49 @@ export default function Items() {
 
       <section className="card">
         <div className="card-head">
-          <div>
-            <div className="card-title">Cabang</div>
-            <div className="card-sub">Kelola daftar cabang kasir</div>
-          </div>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ padding: 0, color: 'var(--ink)', alignItems: 'center', gap: 8 }}
+            onClick={() => setBranchesOpen((o) => !o)}
+            aria-expanded={branchesOpen}
+          >
+            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+              <span className="card-title">Cabang</span>
+              <span className="card-sub">Kelola daftar cabang kasir</span>
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                transform: branchesOpen ? 'rotate(180deg)' : undefined,
+                transition: 'transform 160ms var(--ease-out)',
+              }}
+            >
+              <Icon name="chevron-down" size={18} />
+            </span>
+          </button>
           <Button variant="outline" size="sm" icon="plus" onClick={() => { setAddingBranch(true); setBranchName(''); setBranchError(null) }}>Tambah cabang</Button>
         </div>
-        <div className="row-list">
-          {branches.map((b) => (
-            <div className="row" key={b.id}>
-              <div className="row-main">
-                <div className="row-title">{b.name}</div>
-                <div className="row-sub">{items.filter((it) => it.branchId === b.id).length} item</div>
-              </div>
-              <div className="row-actions">
-                <Button variant="ghost" size="sm" icon="edit" aria-label={`Ubah ${b.name}`} onClick={() => { setRenaming(b); setRenameValue(b.name); setBranchError(null) }} />
-                <Button variant="ghost" size="sm" icon="trash" aria-label={`Hapus ${b.name}`} onClick={() => setDeletingBranch(b)} />
-              </div>
+        {branchesOpen && (
+          branches.length === 0 ? (
+            <EmptyState icon="store" title="Belum ada cabang" body="Tambahkan cabang pertama untuk mengelompokkan menu." />
+          ) : (
+            <div className="row-list">
+              {branches.map((b) => (
+                <div className="row" key={b.id}>
+                  <div className="row-main">
+                    <div className="row-title">{b.name}</div>
+                    <div className="row-sub">{items.filter((it) => it.branchId === b.id).length} item</div>
+                  </div>
+                  <div className="row-actions">
+                    <Button variant="ghost" size="sm" icon="edit" aria-label={`Ubah ${b.name}`} onClick={() => { setRenaming(b); setRenameValue(b.name); setBranchError(null) }} />
+                    <Button variant="ghost" size="sm" icon="trash" aria-label={`Hapus ${b.name}`} onClick={() => setDeletingBranch(b)} />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        )}
       </section>
 
       <Modal
@@ -209,7 +236,7 @@ export default function Items() {
         </Field>
         {editing && editing !== 'new' ? (
           <Field label="Hide from menu">
-            <input type="checkbox" checked={form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} />
+            <Toggle checked={form.hidden} onChange={(hidden) => setForm({ ...form, hidden })} />
           </Field>
         ) : null}
         {error ? <div className="small" style={{ color: 'var(--danger)' }}>{error}</div> : null}
