@@ -2,17 +2,16 @@ import { useState } from 'react'
 import { AppProvider, useApp } from './store'
 import { ToastProvider } from './components/Toast'
 import { Icon, type IconName } from './components/Icons'
+import { resolveTab, type TabId } from './lib/nav'
 import Login from './pages/Login'
 import Pos from './pages/Pos'
 import Items from './pages/Items'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 
-type TabId = 'pos' | 'items' | 'reports' | 'settings'
-
 function Shell() {
   const { ready, needsSetup, session } = useApp()
-  const [tab, setTab] = useState<TabId>('pos')
+  const [rawTab, setTab] = useState<TabId>('pos')
 
   if (!ready) {
     return (
@@ -28,6 +27,8 @@ function Shell() {
   if (needsSetup || !session) {
     return <Login />
   }
+
+  const tab = resolveTab(rawTab, session.role)
 
   const allTabs: Array<{ id: TabId; label: string; icon: IconName; adminOnly?: boolean }> = [
     { id: 'pos', label: 'Kasir', icon: 'layout' },
@@ -52,6 +53,7 @@ function Shell() {
           <button
             key={primary.id}
             className={'nav-primary' + (tab === primary.id ? ' nav-primary-active' : '')}
+            aria-current={tab === primary.id ? 'page' : undefined}
             onClick={() => setTab(primary.id)}
           >
             <span className="nav-pill">
@@ -66,6 +68,7 @@ function Shell() {
             <button
               key={t.id}
               className={'nav-item' + (tab === t.id ? ' nav-item-active' : '')}
+              aria-current={tab === t.id ? 'page' : undefined}
               onClick={() => setTab(t.id)}
             >
               <Icon name={t.icon} />
@@ -80,6 +83,7 @@ function Shell() {
           <button
             key={t.id}
             className={'rail-item' + (tab === t.id ? ' rail-item-active' : '')}
+            aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => setTab(t.id)}
           >
             <Icon name={t.icon} />

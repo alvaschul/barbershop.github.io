@@ -1,7 +1,12 @@
 export function buildCsv(rows: Array<Array<string | number>>, headers: string[]): string {
   const esc = (v: string | number) => {
-    const s = String(v ?? '')
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+    const raw = String(v ?? '')
+    // Prefix formula-looking values with a quote so spreadsheets treat them as
+    // text instead of executing them (CSV injection).
+    const formula = /^[=+\-@]/.test(raw)
+    const s = formula ? "'" + raw : raw
+    if (formula || /[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
+    return s
   }
   return [headers, ...rows].map((r) => r.map(esc).join(',')).join('\n')
 }

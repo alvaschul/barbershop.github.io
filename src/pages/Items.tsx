@@ -53,17 +53,15 @@ export default function Items() {
   }
 
   const saveItem = async () => {
-    if (editing && editing !== 'new') {
-      await updateItem(editing.id, { name: form.name, price: form.price, category: form.category, isHidden: form.hidden })
-      setEditing(null)
-      toast.push('Item tersimpan', 'success')
-      return
-    }
-    const err = await addItem({ name: form.name, price: form.price, category: form.category, branchId: form.branchId, hidden: form.hidden })
+    const err =
+      editing && editing !== 'new'
+        ? await updateItem(editing.id, { name: form.name, price: form.price, category: form.category, isHidden: form.hidden })
+        : await addItem({ name: form.name, price: form.price, category: form.category, branchId: form.branchId, hidden: form.hidden })
     if (err) {
       setError(err)
       return
     }
+    setError(null)
     setEditing(null)
     toast.push('Item tersimpan', 'success')
   }
@@ -214,7 +212,7 @@ export default function Items() {
           <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Haircut" />
         </Field>
         <Field label="Harga">
-          <input type="number" inputMode="numeric" className="input" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) || 0 })} placeholder="0" />
+          <input type="number" inputMode="numeric" min={0} className="input" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) || 0 })} placeholder="0" />
         </Field>
         <Field label="Kategori">
           <select className="select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as Category })}>

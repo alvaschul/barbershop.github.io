@@ -23,7 +23,8 @@ export function buildDailyReport(inp: ReportInput): string {
   const services = inp.lines.filter((l) => l.category === 'service')
   const products = inp.lines.filter((l) => l.category === 'product')
   const g = (list: ReportLine[]) => list.map((l) => `\u2022${l.name} : *${l.quantity}*`)
-  const akhir = inp.awal - inp.qr - inp.um - inp.free
+  // TOTAL AKHIR = TOTAL AWAL - pengeluaran (UM + QR + Free Haircut).
+  const akhir = inp.awal - inp.um - inp.qr - inp.free
 
   const lines: string[] = []
   lines.push('*LAPORAN HARIAN*')
@@ -49,7 +50,7 @@ export function buildDailyReport(inp: ReportInput): string {
   lines.push('QR = *' + fmtK(inp.qr) + '*')
   if (inp.free) lines.push('Free Haircut = *' + fmtK(inp.free) + '*')
   lines.push('')
-  lines.push('*TOTAL AKHIR*= *' + fmtK(Math.max(akhir, 0)) + '*')
+  lines.push('*TOTAL AKHIR*= *' + fmtK(akhir) + '*')
   lines.push('')
   lines.push('')
   lines.push('_Close_')

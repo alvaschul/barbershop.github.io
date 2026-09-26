@@ -59,6 +59,12 @@ async function postToScript(url: string, payload: unknown): Promise<void> {
     body: JSON.stringify(payload),
   })
   if (!r.ok) throw new Error(`Sheet web app responded HTTP ${r.status}.`)
+  // The Apps Script answers HTTP 200 even when it rejects the payload, so the
+  // body has to be inspected as well or failures look like successes.
+  const body = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+  if (body && typeof body === 'object' && body.ok === false) {
+    throw new Error(`Sheet web app rejected the payload: ${body.error ?? 'unknown error'}.`)
+  }
 }
 
 export async function sendTransactionToSheet(url: string, payload: TxnSheetPayload): Promise<void> {
@@ -78,8 +84,19 @@ export async function testSheet(url: string): Promise<{ ok: boolean; message: st
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ source: 'badboy-barber-pages', type: 'test' }),
     })
-    await r.text()
-    return { ok: r.ok, message: r.ok ? 'Terhubung (ok)' : `Respons HTTP ${r.status}.` }
+    const text = await r.text()
+    if (!r.ok) return { ok: false, message: `Respons HTTP ${r.status}.` }
+    let body: { ok?: boolean; error?: string } | null = null
+    try {
+      body = JSON.parse(text)
+    } catch {
+      body = null
+    }
+    if (!body || typeof body !== 'object') {
+      return { ok: false, message: 'Respons web app tidak dikenali (bukan JSON).' }
+    }
+    if (body.ok === false) return { ok: false, message: `Script gagal: ${body.error ?? 'unknown error'}.` }
+    return { ok: true, message: 'Terhubung (ok)' }
   } catch {
     return { ok: false, message: 'Tidak dapat menghubungi URL sheet.' }
   }

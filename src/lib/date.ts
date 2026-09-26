@@ -51,7 +51,11 @@ export function fmtDmy(s: string): string {
 
 export function isoTime(iso: string): string {
   const d = iso ? new Date(iso) : new Date()
-  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  try {
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })
+  } catch {
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  }
 }
 
 export function lastNDates(n: number, from?: string): string[] {
@@ -63,6 +67,18 @@ export function lastNDates(n: number, from?: string): string[] {
 
 export function monthKey(s: string): string {
   return s.slice(0, 7)
+}
+
+export function lastNMonthKeys(n: number, from?: string): string[] {
+  const base = from ? fromDay(from) : new Date()
+  const y = base.getFullYear()
+  const m = base.getMonth()
+  const out: string[] = []
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(y, m - i, 1)
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  return out
 }
 
 export function fmtMonth(key: string): string {

@@ -10,11 +10,8 @@
     {
       "binding": "DB",
       "database_name": "bb-barber-sync",
-      "database_id": "${D1_ID}",
+      "database_id": "4a51867e-3c09-4eff-80bb-752d6ea6f2b3",
       "migrations_dir": "migrations"
     }
-  ],
-  "vars": {
-    "SYNC_TOKEN": "${SYNC_TOKEN}"
-  }
+  ]
 }

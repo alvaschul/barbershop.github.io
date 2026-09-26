@@ -36,20 +36,12 @@ function boolToInt(b: unknown): (0 | 1) {
   return b === true || b === 1 ? 1 : 0
 }
 
-function intToBool<T>(r: T & Record<string, unknown>): T {
-  for (const k of ['isActive', 'isHidden']) {
-    if (typeof r[k] === 'number') r[k] = r[k] === 1
-  }
-  return r
-}
 
-function rowToUser(r: Record<string, unknown>) {
-  return intToBool<Pick<typeof r, string> & { isActive?: boolean }>(r)
-}
-
-async function authorized(req: Request, env: Env): Promise<boolean> {
+export async function authorized(req: Request, env: Env): Promise<boolean> {
   const token = env.SYNC_TOKEN
-  if (!token) return true
+  // Fail closed: a missing/empty token must reject every request rather than
+  // exposing the full database (including PIN hashes) to anyone.
+  if (!token) return false
   const header = req.headers.get('Authorization') || ''
   const provided = header.startsWith('Bearer ') ? header.slice(7) : ''
   if (!provided || provided.length !== token.length) return false
@@ -123,7 +115,12 @@ async function buildBackup(env: Env): Promise<{ backup: Backup; updatedAt: strin
     quantity: Number(r.quantity),
   })
 
-  const savedBarbers = metaMap.saved_barbers ? JSON.parse(metaMap.saved_barbers) : []
+  let savedBarbers: unknown = []
+  try {
+    savedBarbers = metaMap.saved_barbers ? JSON.parse(metaMap.saved_barbers) : []
+  } catch {
+    savedBarbers = []
+  }
   const backup: Backup = {
     app: APP_KEY,
     version: 1,
@@ -146,7 +143,7 @@ async function buildBackup(env: Env): Promise<{ backup: Backup; updatedAt: strin
   return { backup, updatedAt }
 }
 
-async function handlePut(req: Request, env: Env): Promise<Response> {
+export async function handlePut(req: Request, env: Env): Promise<Response> {
   let body: { updatedAt?: string; backup?: Backup }
   try {
     body = await req.json()
@@ -160,66 +157,94 @@ async function handlePut(req: Request, env: Env): Promise<Response> {
   const d = backup.data
   const updatedAt = body.updatedAt || new Date().toISOString()
 
+  // Validate the payload shape BEFORE any destructive statement runs.
+  for (const table of ['users', 'branches', 'items', 'transactions', 'transactionItems'] as const) {
+    if (!Array.isArray(d[table])) {
+      return json({ ok: false, message: 'Backup table must be an array: ' + table }, 400)
+    }
+  }
+  const rows = (v: unknown): Array<Record<string, unknown>> => v as Array<Record<string, unknown>>
+
   try {
+    const userStmt = env.DB.prepare(
+      'INSERT INTO users (id, username, pin_salt, pin_hash, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    )
+    const branchStmt = env.DB.prepare(
+      'INSERT INTO branches (id, name, is_active, created_at) VALUES (?, ?, ?, ?)'
+    )
+    const itemStmt = env.DB.prepare(
+      'INSERT INTO items (id, name, price, category, branch_id, is_active, is_hidden, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    )
+    const txnStmt = env.DB.prepare(
+      'INSERT INTO transactions (id, user_id, branch_id, total_amount, cash_amount, qris_amount, change_amount, notes, date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )
+    const txnItemStmt = env.DB.prepare(
+      'INSERT INTO transaction_items (id, transaction_id, item_id, name, category, unit_price, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    )
+
+    const saved = Array.isArray(d.settings?.savedBarbers) ? JSON.stringify(d.settings.savedBarbers) : '[]'
+    const shopName = d.settings?.shopName || 'Badboy Barber'
+
+    // One batch == one transaction: either the whole database is replaced, or
+    // nothing changes. Doing this statement-by-statement could delete every
+    // table and then fail on a single bad row, losing all data.
     await env.DB.batch([
       env.DB.prepare('DELETE FROM users'),
       env.DB.prepare('DELETE FROM branches'),
       env.DB.prepare('DELETE FROM items'),
       env.DB.prepare('DELETE FROM transactions'),
       env.DB.prepare('DELETE FROM transaction_items'),
-    ])
-
-    const userStmt = env.DB.prepare(
-      'INSERT INTO users (id, username, pin_salt, pin_hash, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    )
-    for (const u of d.users as Array<Record<string, unknown>>) {
-      await userStmt.bind(u.id, u.username, u.pinSalt, u.pinHash, u.role, boolToInt(u.isActive), u.createdAt).run()
-    }
-
-    const branchStmt = env.DB.prepare(
-      'INSERT INTO branches (id, name, is_active, created_at) VALUES (?, ?, ?, ?)'
-    )
-    for (const b of d.branches as Array<Record<string, unknown>>) {
-      await branchStmt.bind(b.id, b.name, boolToInt(b.isActive), b.createdAt).run()
-    }
-
-    const itemStmt = env.DB.prepare(
-      'INSERT INTO items (id, name, price, category, branch_id, is_active, is_hidden, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    )
-    for (const i of d.items as Array<Record<string, unknown>>) {
-      await itemStmt
-        .bind(i.id, i.name, i.price, i.category, i.branchId, boolToInt(i.isActive), boolToInt(i.isHidden), i.createdAt)
-        .run()
-    }
-
-    const txnStmt = env.DB.prepare(
-      'INSERT INTO transactions (id, user_id, branch_id, total_amount, cash_amount, qris_amount, change_amount, notes, date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    )
-    for (const t of d.transactions as Array<Record<string, unknown>>) {
-      await txnStmt
-        .bind(t.id, t.userId, t.branchId ?? null, t.totalAmount, t.cashAmount, t.qrisAmount, t.changeAmount, t.notes ?? '', t.date, t.createdAt)
-        .run()
-    }
-
-    const txnItemStmt = env.DB.prepare(
-      'INSERT INTO transaction_items (id, transaction_id, item_id, name, category, unit_price, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    )
-    for (const ti of d.transactionItems as Array<Record<string, unknown>>) {
-      await txnItemStmt
-        .bind(ti.id, ti.transactionId, ti.itemId, ti.name, ti.category, ti.unitPrice, ti.quantity)
-        .run()
-    }
-
-    const saved = Array.isArray(d.settings?.savedBarbers) ? JSON.stringify(d.settings.savedBarbers) : '[]'
-    const shopName = d.settings?.shopName || 'Badboy Barber'
-    await env.DB.batch([
+      ...rows(d.users).map((u) =>
+        userStmt.bind(u.id, u.username, u.pinSalt, u.pinHash, u.role, boolToInt(u.isActive), u.createdAt)
+      ),
+      ...rows(d.branches).map((b) =>
+        branchStmt.bind(b.id, b.name, boolToInt(b.isActive), b.createdAt)
+      ),
+      ...rows(d.items).map((i) =>
+        itemStmt.bind(
+          i.id,
+          i.name,
+          i.price,
+          i.category,
+          i.branchId,
+          boolToInt(i.isActive),
+          boolToInt(i.isHidden),
+          i.createdAt
+        )
+      ),
+      ...rows(d.transactions).map((t) =>
+        txnStmt.bind(
+          t.id,
+          t.userId,
+          t.branchId ?? null,
+          t.totalAmount,
+          t.cashAmount,
+          t.qrisAmount,
+          t.changeAmount,
+          t.notes ?? '',
+          t.date,
+          t.createdAt
+        )
+      ),
+      ...rows(d.transactionItems).map((ti) =>
+        txnItemStmt.bind(
+          ti.id,
+          ti.transactionId,
+          ti.itemId,
+          ti.name,
+          ti.category,
+          ti.unitPrice,
+          ti.quantity
+        )
+      ),
       env.DB.prepare('DELETE FROM meta'),
       env.DB.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').bind('updated_at', updatedAt),
       env.DB.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').bind('saved_barbers', saved),
       env.DB.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').bind('shop_name', shopName),
     ])
   } catch (e) {
-    return json({ ok: false, message: 'Write failed: ' + String(e) }, 500)
+    console.error('handlePut failed:', e)
+    return json({ ok: false, message: 'Write failed; no data was changed.' }, 500)
   }
   return json({ ok: true, updatedAt })
 }

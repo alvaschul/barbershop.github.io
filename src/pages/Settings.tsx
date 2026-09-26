@@ -6,6 +6,7 @@ import { Modal } from '../components/Modal'
 import { Confirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { testSheet } from '../lib/sheets'
+import { coerceEditValue } from '../lib/dbEdit'
 import type { Role, User } from '../types'
 
 type Section = 'users' | 'shop' | 'backup' | 'sync' | 'db'
@@ -84,8 +85,6 @@ export default function Settings() {
   const [syncEndpoint, setSyncEndpoint] = useState(settings.syncEndpoint)
   const [syncToken, setSyncToken] = useState(settings.syncToken)
   const [sheetUrl, setSheetUrl] = useState(settings.sheetUrl)
-  const [autoSheet, setAutoSheet] = useState(settings.autoSheet)
-  const [autoSync, setAutoSync] = useState(settings.autoSync)
 
   const [tables, setTables] = useState<Array<{ table: string; rows: number }>>([])
   const [dbTable, setDbTable] = useState('users')
@@ -112,14 +111,6 @@ export default function Settings() {
   useEffect(() => {
     setSheetUrl(settings.sheetUrl)
   }, [settings.sheetUrl])
-
-  useEffect(() => {
-    setAutoSheet(settings.autoSheet)
-  }, [settings.autoSheet])
-
-  useEffect(() => {
-    setAutoSync(settings.autoSync)
-  }, [settings.autoSync])
 
   useEffect(() => {
     dbList().then(setTables)
@@ -160,6 +151,18 @@ export default function Settings() {
     setResetPinVal('')
   }
 
+  const resetAddUserForm = () => {
+    setAddUsername('')
+    setAddPin('')
+    setAddRole('cashier')
+    setAddError('')
+  }
+
+  const closeAddUser = () => {
+    resetAddUserForm()
+    setAddOpen(false)
+  }
+
   const handleAddUser = async () => {
     const err = await addUser(addUsername, addPin, addRole)
     if (err) {
@@ -167,11 +170,7 @@ export default function Settings() {
       return
     }
     toast.push(`${addUsername.trim()} ditambahkan`)
-    setAddUsername('')
-    setAddPin('')
-    setAddRole('cashier')
-    setAddError('')
-    setAddOpen(false)
+    closeAddUser()
   }
 
   const handleDeleteClick = (u: User) => {
@@ -254,16 +253,7 @@ export default function Settings() {
     const cols = dbView?.editable ?? []
     const values: Record<string, unknown> = {}
     for (const c of cols) {
-      const orig = editRow[c]
-      const raw = editValues[c] ?? ''
-      if (typeof orig === 'number') {
-        const n = Number(raw)
-        values[c] = Number.isNaN(n) ? 0 : n
-      } else if (typeof orig === 'boolean') {
-        values[c] = raw === 'true' || raw === '1'
-      } else {
-        values[c] = raw
-      }
+      values[c] = coerceEditValue(editRow[c], editValues[c] ?? '')
     }
     try {
       await dbSaveRow(dbTable, editRow.id, values)
@@ -388,7 +378,13 @@ export default function Settings() {
               )
             })}
           </div>
-          <Button variant="primary" onClick={() => setAddOpen(true)}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              resetAddUserForm()
+              setAddOpen(true)
+            }}
+          >
             Tambah pengguna
           </Button>
         </section>
@@ -511,8 +507,8 @@ export default function Settings() {
               <Button variant="primary" icon="sync" onClick={handleSyncNow}>
                 Sync sekarang
               </Button>
-              <Chip selected={autoSync} onClick={() => { saveSettings({ autoSync: !autoSync }); setAutoSync(!autoSync) }}>
-                Auto-sync setelah transaksi: {autoSync ? 'ON' : 'OFF'}
+              <Chip selected={settings.autoSync} onClick={() => saveSettings({ autoSync: !settings.autoSync })}>
+                Auto-sync setelah transaksi: {settings.autoSync ? 'ON' : 'OFF'}
               </Chip>
             </div>
             <p className="small muted" style={{ marginTop: 12 }}>
@@ -554,8 +550,8 @@ export default function Settings() {
               >
                 Tes koneksi
               </Button>
-              <Chip selected={autoSheet} onClick={() => { saveSettings({ autoSheet: !autoSheet }); setAutoSheet(!autoSheet) }}>
-                Auto-input tiap transaksi: {autoSheet ? 'ON' : 'OFF'}
+              <Chip selected={settings.autoSheet} onClick={() => saveSettings({ autoSheet: !settings.autoSheet })}>
+                Auto-input tiap transaksi: {settings.autoSheet ? 'ON' : 'OFF'}
               </Chip>
             </div>
             <p className="small muted" style={{ marginTop: 12 }}>
@@ -689,12 +685,12 @@ export default function Settings() {
 
       <Modal
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={closeAddUser}
         title="Tambah pengguna"
         sheet
         actions={
           <>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
+            <Button variant="outline" onClick={closeAddUser}>
               Batal
             </Button>
             <Button variant="primary" onClick={handleAddUser}>

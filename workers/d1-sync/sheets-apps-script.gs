@@ -22,7 +22,7 @@ function ensureSheet(name) {
   return sheet;
 }
 
-function appendTxn(row) {
+function appendTxn(row, branch) {
   var sheet = ensureSheet('Transaksi');
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(['Waktu', 'Tanggal', 'ID', 'Metode', 'Total', 'Tunai', 'QRIS', 'Kembalian', 'Cabang', 'Items']);
@@ -36,7 +36,7 @@ function appendTxn(row) {
     row.cash,
     row.qris,
     row.change,
-    row.branch || '',
+    branch || '',
     row.lines.map(function (l) {
       return l.name + ' x' + l.qty;
     }).join(', ')
@@ -69,7 +69,7 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents || '{}');
     if (body.source !== SOURCE) throw new Error('unknown source');
     if (body.type === 'txn') {
-      appendTxn(body.txn);
+      appendTxn(body.txn, body.meta && body.meta.branch);
     } else if (body.type === 'report') {
       appendReport(body);
     } else if (body.type !== 'test') {

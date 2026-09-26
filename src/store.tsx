@@ -19,10 +19,13 @@ import {
   setSetting,
 } from './lib/db'
 import { hashPin, randomSalt, verifyPin } from './lib/crypto'
+import { validateItem } from './lib/validate'
 import { downloadBackup, buildBackup, isBackupFile, restoreBackup } from './lib/backup'
 import { syncNow } from './lib/sync'
 import { sendTransactionToSheet } from './lib/sheets'
-import { todayStr, addDays, lastNDates, monthKey } from './lib/date'
+import { todayStr, lastNDates, monthKey, lastNMonthKeys } from './lib/date'
+import { shouldLogoutAfterToggle } from './lib/users'
+import { toStoreName } from './lib/dbEdit'
 import type {
   Branch,
   CartLine,
@@ -127,7 +130,7 @@ interface AppState {
   renameBranch: (id: number, name: string) => Promise<void>
   // items
   addItem: (input: { name: string; price: number; category: Category; branchId: number; hidden: boolean }) => Promise<string | null>
-  updateItem: (id: number, patch: Partial<Pick<Item, 'name' | 'price' | 'category' | 'isActive' | 'isHidden'>>) => Promise<void>
+  updateItem: (id: number, patch: Partial<Pick<Item, 'name' | 'price' | 'category' | 'isActive' | 'isHidden'>>) => Promise<string | null>
   deleteItem: (id: number) => Promise<void>
   // transactions + payments
   checkouts: CartLine[]
@@ -324,9 +327,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (id: number) => {
       const u = users.find((x) => x.id === id)
       if (!u) return
-      await putRow('users', { ...u, isActive: !u.isActive })
+      const wasActive = u.isActive
+      await putRow('users', { ...u, isActive: !wasActive })
       await refresh()
-      if (session?.id === id && !u.isActive) logout()
+      if (shouldLogoutAfterToggle(session?.id === id, wasActive)) logout()
     },
     [users, session, refresh, logout]
   )
@@ -376,9 +380,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback(
     async (input: { name: string; price: number; category: Category; branchId: number; hidden: boolean }): Promise<string | null> => {
       const n = input.name.trim()
-      if (n.length < 2) return 'Name is too short (min. 2 characters).'
-      if (!Number.isFinite(input.price) || input.price < 0) return 'Price must be a non-negative number.'
-      if (input.price > 99_999_999) return 'Price is too large.'
+      const validationError = validateItem(n, input.price, input.category)
+      if (validationError) return validationError
       if (!input.branchId) return 'Select a branch.'
       await addRow('items', {
         name: n,
@@ -396,11 +399,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const updateItem = useCallback(
-    async (id: number, patch: Partial<Pick<Item, 'name' | 'price' | 'category' | 'isActive' | 'isHidden'>>) => {
+    async (id: number, patch: Partial<Pick<Item, 'name' | 'price' | 'category' | 'isActive' | 'isHidden'>>): Promise<string | null> => {
       const it = items.find((x) => x.id === id)
-      if (!it) return
-      await putRow('items', { ...it, ...patch })
+      if (!it) return 'Item not found.'
+      const next = { ...it, ...patch }
+      const validationError = validateItem(next.name, next.price, next.category)
+      if (validationError) return validationError
+      await putRow('items', { ...next, name: next.name.trim() })
       await refresh()
+      return null
     },
     [items, refresh]
   )
@@ -553,12 +560,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const monthlySeries = useCallback(
     (months = 6) => {
       const out: Array<{ month: string; revenue: number; count: number }> = []
-      const today = todayStr()
-      for (let i = months - 1; i >= 0; i--) {
-        const d = addDays(today, -i * 30)
-        const m = monthKey(d)
-        out.push({ month: m, revenue: 0, count: 0 })
-      }
+      const monthKeys = lastNMonthKeys(months, todayStr())
+      for (const m of monthKeys) out.push({ month: m, revenue: 0, count: 0 })
       for (const t of transactions) {
         const m = monthKey(t.date)
         const slot = out.find((o) => o.month === m)
@@ -675,14 +678,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const dbDeleteRow = useCallback(
     async (table: string, id: number) => {
-      const store = `${table}` as 'users' | 'branches' | 'items' | 'transactions' | 'transactionItems'
+      const store = toStoreName(table)
       await deleteRow(store, id)
-      if (table === 'transactions') {
+      if (store === 'transactions') {
         const items = txnItems.filter((t) => t.transactionId === id)
         for (const it of items) await deleteRow('transactionItems', it.id)
-      }
-      if (table === 'items') {
-        await deleteRow('items', id)
       }
       await refresh()
     },

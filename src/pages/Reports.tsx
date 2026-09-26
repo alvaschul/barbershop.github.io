@@ -4,6 +4,8 @@ import { fmtRp, fmtK } from '../lib/money'
 import { todayStr, yesterdayStr, isoTime } from '../lib/date'
 import { buildCsv, downloadCsv } from '../lib/csv'
 import { buildDailyReport, whatsappUrl } from '../lib/report'
+import { itemQtyForTxn } from '../lib/txn'
+import { validateRekapan } from '../lib/validate'
 import { sendReportToSheet } from '../lib/sheets'
 import * as XLSX from 'xlsx'
 import { Badge, Button, Chip, EmptyState, Field } from '../components/primitives'
@@ -13,6 +15,7 @@ import { useToast } from '../components/Toast'
 export default function Reports() {
   const {
     transactions,
+    txnItems,
     branches,
     dailySummary,
     dailyBreakdown,
@@ -37,9 +40,13 @@ export default function Reports() {
 
   const activeBranches = branches.filter((b) => b.isActive)
 
+  const cabangTouched = useRef(false)
+
   useEffect(() => {
-    if (cabang === '' && activeBranches.length) setCabang(activeBranches[0].name)
-  }, [branches, cabang, activeBranches])
+    if (cabangTouched.current) return
+    const first = activeBranches[0]?.name
+    if (first && first !== cabang) setCabang(first)
+  }, [activeBranches, cabang])
 
   useEffect(() => {
     if (lastDate.current === date) return
@@ -65,16 +72,26 @@ export default function Reports() {
     lines: dailyLines(date),
   })
 
-  const cabangError = cabang.trim() === ''
-  const awalError = Number.isNaN(awal) || awal < 0
-  const barberError = selected.length === 0
+  const { ok: formOk, cabangError, awalError, freeError, barberError } = validateRekapan({
+    cabang,
+    awal,
+    free,
+    barbers: selected,
+  })
+
+  const formMessage = cabangError
+    ? 'Isi nama cabang.'
+    : awalError
+      ? 'Uang awal harus angka 0 atau lebih.'
+      : freeError
+        ? 'Free haircut harus angka 0 atau lebih.'
+        : barberError
+          ? 'Pilih minimal satu kapster.'
+          : 'Data rekapan belum lengkap.'
 
   const checkValid = () => {
     setTried(true)
-    if (cabangError) return false
-    if (awalError) return false
-    if (barberError) return false
-    return true
+    return formOk
   }
 
   const toggleBarber = (name: string) =>
@@ -119,7 +136,7 @@ export default function Reports() {
 
   const sendToSheet = async () => {
     if (!checkValid()) {
-      toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
+      toast.push(formMessage, 'error')
       return
     }
     if (!settings.sheetUrl.trim()) {
@@ -155,7 +172,7 @@ export default function Reports() {
 
   const copyReport = async () => {
     if (!checkValid()) {
-      toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
+      toast.push(formMessage, 'error')
       return
     }
     await navigator.clipboard.writeText(text)
@@ -164,7 +181,7 @@ export default function Reports() {
 
   const openWhatsApp = () => {
     if (!checkValid()) {
-      toast.push('Lengkapi cabang, uang awal, dan kapster.', 'error')
+      toast.push(formMessage, 'error')
       return
     }
     window.open(whatsappUrl(text), '_blank')
@@ -209,6 +226,7 @@ export default function Reports() {
           <button
             key={t}
             className={'tab' + (tab === t ? ' tab-active' : '')}
+            aria-current={tab === t ? 'page' : undefined}
             onClick={() => setTab(t)}
           >
             {t === 'ringkasan' ? 'Ringkasan' : t === 'transaksi' ? 'Transaksi' : 'Rekapan'}
@@ -300,7 +318,7 @@ export default function Reports() {
                       <td>{i + 1}</td>
                       <td>{isoTime(t.createdAt)}</td>
                       <td className="num">#{t.id}</td>
-                      <td>{itemCount}</td>
+                      <td>{itemQtyForTxn(txnItems, t.id)}</td>
                       <td className="num">{fmtRp(t.totalAmount)}</td>
                       <td>
                         {t.cashAmount > 0 ? (
@@ -331,8 +349,8 @@ export default function Reports() {
         </div>
         <Field label="Cabang">
           <div className="grid-2">
-            <input className="input" value={cabang} onChange={(e) => setCabang(e.target.value)} placeholder="Nama cabang" />
-            <select className="select" value={activeBranches.some((b) => b.name === cabang) ? cabang : ''} onChange={(e) => { if (e.target.value) setCabang(e.target.value) }}>
+            <input className="input" value={cabang} onChange={(e) => { cabangTouched.current = true; setCabang(e.target.value) }} placeholder="Nama cabang" />
+            <select className="select" value={activeBranches.some((b) => b.name === cabang) ? cabang : ''} onChange={(e) => { if (e.target.value) { cabangTouched.current = true; setCabang(e.target.value) } }}>
               <option value="">Pilih cabang&hellip;</option>
               {activeBranches.map((b) => (
                 <option key={b.id} value={b.name}>{b.name}</option>
@@ -347,6 +365,7 @@ export default function Reports() {
         </Field>
         <Field label="Free Haircut">
           <input type="number" inputMode="numeric" className="input" value={free} onChange={(e) => setFree(Number(e.target.value) || 0)} />
+          {tried && freeError && <span className="field-error">Free haircut harus angka 0 atau lebih.</span>}
         </Field>
         <Field label="Kapster tersimpan">
           <div className="head-actions">
