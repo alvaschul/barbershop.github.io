@@ -84,6 +84,13 @@ function Shell() {
       </nav>
 
       <nav className="nav-rail" aria-label="Navigasi utama">
+        <div className="brand-lockup">
+          <div className="brand-mark"><Icon name="scissors" size={19} /></div>
+          <div>
+            <div className="brand-name">BADBOY</div>
+            <div className="brand-meta">BARBER / POS</div>
+          </div>
+        </div>
         {tabs.map((t) => (
           <button
             key={t.id}

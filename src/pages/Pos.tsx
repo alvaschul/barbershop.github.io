@@ -174,8 +174,9 @@ export default function Pos() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head pos-head">
         <div>
+          <div className="eyebrow">Front desk / hari ini</div>
           <h1 className="page-title">Kasir</h1>
           <div className="page-sub">{fmtDayLong(todayStr())}</div>
         </div>
@@ -218,9 +219,9 @@ export default function Pos() {
           </div>
         ) : (
           <div className="menu-list">
-            {visible.map((it) => (
+            {visible.map((it, index) => (
               <button key={it.id} type="button" className="menu-card" onClick={() => addToCart(it)}>
-                <span className="menu-cat">{it.category.toUpperCase()}</span>
+                <span className="menu-topline"><span className="menu-index">{String(index + 1).padStart(2, '0')}</span><span className="menu-cat">{it.category.toUpperCase()}</span><span className="menu-add">+</span></span>
                 <span className="menu-name">{it.name}</span>
                 <span className="menu-price">{fmtRp(it.price)}</span>
               </button>
