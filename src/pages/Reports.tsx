@@ -7,7 +7,6 @@ import { buildDailyReport, whatsappUrl } from '../lib/report'
 import { itemQtyForTxn } from '../lib/txn'
 import { validateRekapan } from '../lib/validate'
 import { sendReportToSheet } from '../lib/sheets'
-import * as XLSX from 'xlsx'
 import { Badge, Button, Chip, EmptyState, Field } from '../components/primitives'
 import { BarChart, RankList } from '../components/Chart'
 import { useToast } from '../components/Toast'
@@ -109,8 +108,9 @@ export default function Reports() {
     toast.push('CSV diunduh', 'success')
   }
 
-  const exportExcel = () => {
-    const wb = XLSX.utils.book_new()
+  const exportExcel = async () => {
+    const ExcelJS = await import('exceljs')
+    const wb = new ExcelJS.Workbook()
     const txnRows = txns.map((t, i) => ({
       No: i + 1,
       Waktu: isoTime(t.createdAt),
@@ -122,15 +122,25 @@ export default function Reports() {
       Metode: t.cashAmount > 0 ? 'TUNAI' : t.qrisAmount > 0 ? 'QRIS' : '-',
       Catatan: t.notes || '-',
     }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txnRows), 'Transaksi')
+    const txnSheet = wb.addWorksheet('Transaksi')
+    txnSheet.columns = Object.keys(txnRows[0] ?? {}).map((key) => ({ header: key, key }))
+    txnSheet.addRows(txnRows)
     const rincianRows = breakdown.map((b) => ({
       Nama: b.name,
       Kategori: b.category === 'service' ? 'Service' : 'Product',
       Jumlah: b.quantity,
       Total: b.total,
     }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rincianRows), 'Rincian')
-    XLSX.writeFile(wb, `laporan-${date}.xlsx`)
+    const detailSheet = wb.addWorksheet('Rincian')
+    detailSheet.columns = Object.keys(rincianRows[0] ?? {}).map((key) => ({ header: key, key }))
+    detailSheet.addRows(rincianRows)
+    const buffer = await wb.xlsx.writeBuffer()
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `laporan-${date}.xlsx`
+    anchor.click()
+    URL.revokeObjectURL(url)
     toast.push('Excel diunduh', 'success')
   }
 

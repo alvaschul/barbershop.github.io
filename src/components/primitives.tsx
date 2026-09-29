@@ -39,14 +39,20 @@ function assignControlId(children: ReactNode, fallbackId: string): { content: Re
   }
   if (Array.isArray(children)) {
     let controlId: string | null = null
-    const content = children.map((child) => {
-      if (controlId !== null) return child
+    const content = children.map((child, index) => {
+      const childWithKey = isValidElement(child)
+        ? cloneElement(child, { key: child.key ?? `${fallbackId}-child-${index}` })
+        : child
+      if (controlId !== null) return childWithKey
       if (isValidElement(child)) {
         const props = child.props as { id?: string }
         controlId = props.id ?? fallbackId
-        return cloneElement(child as ReactElement<{ id?: string }>, { id: controlId })
+        return cloneElement(child as ReactElement<{ id?: string }>, {
+          id: controlId,
+          key: child.key ?? `${fallbackId}-child-${index}`,
+        })
       }
-      return child
+      return childWithKey
     })
     if (controlId !== null) return { content, controlId }
     return { content: children, controlId: null }

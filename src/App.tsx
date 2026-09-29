@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { AppProvider, useApp } from './store'
 import { ToastProvider } from './components/Toast'
 import { Icon, type IconName } from './components/Icons'
 import { resolveTab, type TabId } from './lib/nav'
-import Login from './pages/Login'
-import Pos from './pages/Pos'
-import Items from './pages/Items'
-import Reports from './pages/Reports'
-import Settings from './pages/Settings'
+const Login = lazy(() => import('./pages/Login'))
+const Pos = lazy(() => import('./pages/Pos'))
+const Items = lazy(() => import('./pages/Items'))
+const Reports = lazy(() => import('./pages/Reports'))
+const Settings = lazy(() => import('./pages/Settings'))
+
+function PageFallback() {
+  return <div className="auth-wrap"><div className="muted small">Memuat&hellip;</div></div>
+}
 
 function Shell() {
   const { ready, needsSetup, session } = useApp()
@@ -40,13 +44,14 @@ function Shell() {
   const primary = tabs.find((t) => t.id === 'pos')
 
   return (
-    <div className="app">
-      <main className="content">
-        {tab === 'pos' && <Pos />}
-        {tab === 'items' && <Items />}
-        {tab === 'reports' && <Reports />}
-        {tab === 'settings' && session.role === 'admin' && <Settings />}
-      </main>
+    <Suspense fallback={<PageFallback />}>
+      <div className="app">
+        <main className="content">
+          {tab === 'pos' && <Pos />}
+          {tab === 'items' && <Items />}
+          {tab === 'reports' && <Reports />}
+          {tab === 'settings' && session.role === 'admin' && <Settings />}
+        </main>
 
       <nav className="bottom-nav" aria-label="Navigasi utama (ponsel)">
         {primary && (
@@ -90,8 +95,9 @@ function Shell() {
             <span>{t.label}</span>
           </button>
         ))}
-      </nav>
-    </div>
+        </nav>
+      </div>
+    </Suspense>
   )
 }
 

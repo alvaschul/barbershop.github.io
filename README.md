@@ -12,8 +12,9 @@ npm run build    # tsc && vite build -> dist/
 
 ## Deploy
 
-- App builds to `dist/`. Push it to the `gh-pages` branch (Pages = legacy branch build).
-- Optional CI at `.github/workflows/deploy.yml` (requires a token with Workflows scope).
+- Pushes to `main` are validated and deployed automatically by `.github/workflows/deploy.yml`.
+- GitHub Pages must use **GitHub Actions** as its build source; the old `gh-pages` branch is no longer the deployment source.
+- The Excel export uses `exceljs` and is loaded only when the export button is used.
 
 ## Cloud sync (optional)
 
