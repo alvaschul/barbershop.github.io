@@ -44,7 +44,7 @@ export default function Login() {
         <div className="auth-logo">
           <Icon name="scissors" size={52} />
           <h1 className="auth-title">Badboy Barber</h1>
-          <div className="auth-sub">POS & laporan harian</div>
+          <div className="auth-sub">Kasir offline untuk operasional harian</div>
         </div>
         <form onSubmit={onSubmit}>
           <Field label="Username">
@@ -56,7 +56,7 @@ export default function Login() {
               autoComplete="username"
             />
           </Field>
-          <Field label="PIN">
+          <Field label="PIN akses">
             <input
               className="input"
               type="password"
@@ -66,7 +66,7 @@ export default function Login() {
             />
           </Field>
           {needsSetup && (
-            <Field label="Confirm PIN">
+            <Field label="Konfirmasi PIN">
               <input
                 className="input"
                 type="password"
@@ -82,11 +82,11 @@ export default function Login() {
             </p>
           )}
           <Button type="submit" variant="primary" className="btn-block" disabled={loading}>
-            {loading ? 'Signing in…' : needsSetup ? 'Create admin & sign in' : 'Sign in'}
+            {loading ? 'Memproses…' : needsSetup ? 'Buat admin & masuk' : 'Masuk'}
           </Button>
           {!needsSetup && (
             <p className="small muted">
-              Semua data tersimpan offline di perangkat ini (IndexedDB) tanpa server.
+              Data tersimpan offline di perangkat ini. Tidak perlu koneksi server untuk transaksi.
             </p>
           )}
         </form>
