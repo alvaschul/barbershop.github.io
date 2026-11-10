@@ -23,11 +23,67 @@ export function Modal({
 
   useEffect(() => {
     if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    const focusableSelector = [
+      'a[href]',
+      'area[href]',
+      'button:not([disabled])',
+      'input:not([disabled]):not([type="hidden"])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      'iframe',
+      'object',
+      'embed',
+      '[contenteditable="true"]',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',')
+
+    const getFocusable = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector)).filter((element) => {
+        if (element.matches(':disabled') || element.closest('[hidden], [aria-hidden="true"]')) return false
+        const style = window.getComputedStyle(element)
+        return style.display !== 'none' && style.visibility !== 'hidden'
+      })
+
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+
+      const focusable = getFocusable()
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement
+      const focusIsOutside = !(active instanceof Node) || !dialog.contains(active)
+
+      if (!first) {
+        e.preventDefault()
+        dialog.focus({ preventScroll: true })
+      } else if (e.shiftKey && (active === first || active === dialog || focusIsOutside)) {
+        e.preventDefault()
+        last.focus({ preventScroll: true })
+      } else if (!e.shiftKey && (active === last || focusIsOutside)) {
+        e.preventDefault()
+        first.focus({ preventScroll: true })
+      }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+
+    const handleFocusin = (e: FocusEvent) => {
+      if (e.target instanceof Node && !dialog.contains(e.target)) {
+        dialog.focus({ preventScroll: true })
+      }
+    }
+
+    document.addEventListener('keydown', handleKeydown, true)
+    document.addEventListener('focusin', handleFocusin, true)
+    return () => {
+      document.removeEventListener('keydown', handleKeydown, true)
+      document.removeEventListener('focusin', handleFocusin, true)
+    }
   }, [open, onClose])
 
   useEffect(() => {

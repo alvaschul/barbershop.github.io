@@ -119,7 +119,7 @@ export default function Pos() {
               <div className="cart-line" key={l.itemId}>
                 <div className="row-main">
                   <div className="row-title">{l.name}</div>
-                  <div className="small muted">{l.category.toUpperCase()}</div>
+                  <div className="small muted">{l.category === 'service' ? 'LAYANAN' : 'PRODUK'}</div>
                 </div>
                 <div className="cart-qty-wrap">
                   <button type="button" className="qty-btn" aria-label={`Kurangi ${l.name}`} onClick={() => bump(l.itemId, -1)}>−</button>
@@ -138,6 +138,7 @@ export default function Pos() {
           <input
             className="input"
             placeholder="Catatan (opsional)"
+            aria-label="Catatan transaksi (opsional)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
@@ -176,7 +177,7 @@ export default function Pos() {
     <>
       <div className="page-head pos-head">
         <div>
-          <div className="eyebrow">Front desk / hari ini</div>
+          <div className="eyebrow">Kasir / hari ini</div>
           <h1 className="page-title">Kasir</h1>
           <div className="page-sub">{fmtDayLong(todayStr())}</div>
         </div>
@@ -184,6 +185,7 @@ export default function Pos() {
           <select
             className="select"
             style={{ width: 200, flexShrink: 0 }}
+            aria-label="Pilih cabang"
             value={branch}
             onChange={(e) => setBranch(Number(e.target.value))}
           >
@@ -198,6 +200,7 @@ export default function Pos() {
             className="input"
             style={{ flex: 1 }}
             placeholder="Cari menu…"
+            aria-label="Cari layanan atau produk"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -207,7 +210,7 @@ export default function Pos() {
       <div className="head-actions section-gap">
         {(['all', 'service', 'product'] as const).map((c) => (
           <Chip key={c} selected={cat === c} onClick={() => setCat(c)}>
-            {c === 'all' ? 'Semua' : c === 'service' ? 'Service' : 'Product'}
+            {c === 'all' ? 'Semua' : c === 'service' ? 'Layanan' : 'Produk'}
           </Chip>
         ))}
       </div>
@@ -221,7 +224,7 @@ export default function Pos() {
           <div className="menu-list">
             {visible.map((it, index) => (
               <button key={it.id} type="button" className="menu-card" onClick={() => addToCart(it)}>
-                <span className="menu-topline"><span className="menu-index">{String(index + 1).padStart(2, '0')}</span><span className="menu-cat">{it.category.toUpperCase()}</span><span className="menu-add">+</span></span>
+                <span className="menu-topline"><span className="menu-index">{String(index + 1).padStart(2, '0')}</span><span className="menu-cat">{it.category === 'service' ? 'LAYANAN' : 'PRODUK'}</span><span className="menu-add" aria-hidden="true">+</span></span>
                 <span className="menu-name">{it.name}</span>
                 <span className="menu-price">{fmtRp(it.price)}</span>
               </button>

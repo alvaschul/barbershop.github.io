@@ -205,7 +205,7 @@ export default function Reports() {
           <p className="page-sub">{date}</p>
         </div>
         <div className="head-actions">
-          <input type="date" className="input" style={{ width: 168 }} value={date} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" className="input" style={{ width: 168 }} aria-label="Tanggal laporan" value={date} onChange={(e) => setDate(e.target.value)} />
           <Button variant="ghost" size="sm" onClick={() => setDate(todayStr())}>Hari ini</Button>
           <Button variant="ghost" size="sm" onClick={() => setDate(yesterdayStr())}>Kemarin</Button>
         </div>
@@ -237,6 +237,7 @@ export default function Reports() {
             key={t}
             className={'tab' + (tab === t ? ' tab-active' : '')}
             aria-current={tab === t ? 'page' : undefined}
+            aria-pressed={tab === t}
             onClick={() => setTab(t)}
           >
             {t === 'ringkasan' ? 'Ringkasan' : t === 'transaksi' ? 'Transaksi' : 'Rekapan'}
@@ -268,7 +269,7 @@ export default function Reports() {
           <section className="card section-gap">
             <div className="card-head">
               <div>
-                <div className="card-title">Rincian / breakdown</div>
+              <div className="card-title">Rincian penjualan</div>
                 <div className="card-sub">Item terjual tanggal {date}</div>
               </div>
             </div>
@@ -280,7 +281,7 @@ export default function Reports() {
                   <div className="row" key={b.itemId}>
                     <div className="row-main">
                       <div className="row-title">{b.name}</div>
-                      <div className="row-sub">{b.category === 'service' ? 'Service' : 'Product'}</div>
+                      <div className="row-sub">{b.category === 'service' ? 'Layanan' : 'Produk'}</div>
                     </div>
                     <div className="row-actions">
                       <span className="small muted">{b.quantity}×</span>
@@ -354,13 +355,13 @@ export default function Reports() {
         <div className="card-head">
           <div>
             <div className="card-title">Laporan harian</div>
-            <div className="card-sub">Text report siap kirim ke grup WhatsApp</div>
+            <div className="card-sub">Teks laporan siap dikirim ke grup WhatsApp</div>
           </div>
         </div>
         <Field label="Cabang">
           <div className="grid-2">
-            <input className="input" value={cabang} onChange={(e) => { cabangTouched.current = true; setCabang(e.target.value) }} placeholder="Nama cabang" />
-            <select className="select" value={activeBranches.some((b) => b.name === cabang) ? cabang : ''} onChange={(e) => { if (e.target.value) { cabangTouched.current = true; setCabang(e.target.value) } }}>
+            <input className="input" aria-label="Nama cabang laporan" value={cabang} onChange={(e) => { cabangTouched.current = true; setCabang(e.target.value) }} placeholder="Nama cabang" />
+            <select className="select" aria-label="Pilih cabang laporan" value={activeBranches.some((b) => b.name === cabang) ? cabang : ''} onChange={(e) => { if (e.target.value) { cabangTouched.current = true; setCabang(e.target.value) } }}>
               <option value="">Pilih cabang&hellip;</option>
               {activeBranches.map((b) => (
                 <option key={b.id} value={b.name}>{b.name}</option>

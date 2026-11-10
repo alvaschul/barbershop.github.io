@@ -119,8 +119,8 @@ export default function Items() {
 
       <div className="head-actions section-gap">
         <Chip selected={filter === 'all'} onClick={() => setFilter('all')}>Semua</Chip>
-        <Chip selected={filter === 'service'} onClick={() => setFilter('service')}>Service</Chip>
-        <Chip selected={filter === 'product'} onClick={() => setFilter('product')}>Product</Chip>
+        <Chip selected={filter === 'service'} onClick={() => setFilter('service')}>Layanan</Chip>
+        <Chip selected={filter === 'product'} onClick={() => setFilter('product')}>Produk</Chip>
       </div>
 
       {visible.length === 0 ? (
@@ -136,7 +136,7 @@ export default function Items() {
                 <div className="row-title">
                   {it.name}
                   {' '}
-                  <Badge tone={it.category === 'service' ? 'accent' : 'qris'}>{it.category === 'service' ? 'Service' : 'Product'}</Badge>
+                  <Badge tone={it.category === 'service' ? 'accent' : 'qris'}>{it.category === 'service' ? 'Layanan' : 'Produk'}</Badge>
                   {it.isHidden ? <Badge tone="muted">HIDDEN</Badge> : null}
                 </div>
                 <div className="row-sub">{fmtRp(it.price)} · {branchNameById(it.branchId)}</div>
@@ -151,7 +151,7 @@ export default function Items() {
       )}
 
       <section className="card">
-        <div className="card-head">
+        <div className="card-head branch-head">
           <button
             type="button"
             className="btn btn-ghost"
@@ -208,7 +208,7 @@ export default function Items() {
           </>
         }
       >
-        <Field label="Nama">
+          <Field label="Nama item">
           <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Haircut" />
         </Field>
         <Field label="Harga">
@@ -216,8 +216,8 @@ export default function Items() {
         </Field>
         <Field label="Kategori">
           <select className="select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as Category })}>
-            <option value="service">Service</option>
-            <option value="product">Product</option>
+            <option value="service">Layanan</option>
+            <option value="product">Produk</option>
           </select>
         </Field>
         <Field label="Cabang">
@@ -233,8 +233,8 @@ export default function Items() {
           </select>
         </Field>
         {editing && editing !== 'new' ? (
-          <Field label="Hide from menu">
-            <Toggle checked={form.hidden} onChange={(hidden) => setForm({ ...form, hidden })} />
+          <Field label="Visibilitas menu">
+            <Toggle label="Sembunyikan item dari kasir" checked={form.hidden} onChange={(hidden) => setForm({ ...form, hidden })} />
           </Field>
         ) : null}
         {error ? <div className="small" style={{ color: 'var(--danger)' }}>{error}</div> : null}
@@ -243,7 +243,7 @@ export default function Items() {
       <Confirm
         open={deleting !== null}
         title="Hapus item?"
-        message="This will remove it from the menu. Past transactions keep their own copy."
+        message="Item akan dihapus dari menu. Transaksi lama tetap menyimpan rincian itemnya."
         confirmLabel="Hapus"
         danger
         onConfirm={confirmDelete}

@@ -14,7 +14,7 @@ function PageFallback() {
 }
 
 function Shell() {
-  const { ready, needsSetup, session } = useApp()
+  const { ready, needsSetup, session, settings, checkouts } = useApp()
   const [rawTab, setTab] = useState<TabId>('pos')
 
   if (!ready) {
@@ -46,7 +46,14 @@ function Shell() {
   return (
     <Suspense fallback={<PageFallback />}>
       <div className="app">
-        <main className="content">
+        <main className={tab === 'pos' && checkouts.length > 0 ? 'content content-pos-cart' : 'content'}>
+          <header className="mobile-topbar">
+            <div className="mobile-brand">
+              <div className="mobile-brand-mark"><Icon name="scissors" size={19} /></div>
+              <div><strong>{settings.shopName || 'BADBOY BARBER'}</strong><span>BARBER / POS</span></div>
+            </div>
+            <span className="mobile-status"><i /> Offline-first</span>
+          </header>
           {tab === 'pos' && <Pos />}
           {tab === 'items' && <Items />}
           {tab === 'reports' && <Reports />}
@@ -87,10 +94,11 @@ function Shell() {
         <div className="brand-lockup">
           <div className="brand-mark"><Icon name="scissors" size={19} /></div>
           <div>
-            <div className="brand-name">BADBOY</div>
+            <div className="brand-name">BADBOY<span>.</span></div>
             <div className="brand-meta">BARBER / POS</div>
           </div>
         </div>
+        <div className="rail-section-label">Workspace</div>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -100,8 +108,18 @@ function Shell() {
           >
             <Icon name={t.icon} />
             <span>{t.label}</span>
+            {tab === t.id && <span className="rail-active-mark" aria-hidden="true" />}
           </button>
         ))}
+        <div className="rail-spacer" />
+        <div className="rail-status">
+          <span className="status-indicator" />
+          <div><strong>Penyimpanan lokal</strong><span>Sync opsional di Pengaturan</span></div>
+        </div>
+        <div className="rail-user">
+          <span className="rail-avatar">{session.username.slice(0, 1).toUpperCase()}</span>
+          <span className="rail-user-copy"><strong>{session.username}</strong><small>{session.role === 'admin' ? 'ADMIN' : 'KASIR'}</small></span>
+        </div>
         </nav>
       </div>
     </Suspense>

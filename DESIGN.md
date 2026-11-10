@@ -1,21 +1,20 @@
-# Badboy Barber visual direction
+# Badboy Barber — visual direction
 
-## Product truth
-
-Badboy Barber is an offline-first POS for barbershop front-desk work: selecting services, building a transaction, taking payment, and reviewing daily reports.
+## Product identity
+Badboy Barber is a fast, offline-first point of sale for a working barbershop. It should feel fresh, modern, and easy to scan at a glance—not like a dark admin tool or a beige dashboard.
 
 ## Visual system
+- **World:** clean white surfaces over a cool, very light blue-gray canvas, with clear borders and generous spacing.
+- **Accent:** vivid cobalt blue for active navigation, primary actions, and key interactive cues. Fresh green signals success and local-ready status; cyan-blue is reserved for QRIS and warm amber for cash.
+- **Typography:** locally available system sans-serif, clear hierarchy, and tabular figures for rupiah amounts; do not fetch fonts remotely.
+- **Shape:** comfortable 10–16px working surfaces, rounded chips for filters and small status labels, and restrained soft shadows.
+- **Depth:** light surface layering, never dark panels, beige-heavy backgrounds, or decorative gradients on controls.
+- **Imagery:** the existing shop photograph supports the sign-in story only. Keep cashier, reporting, and settings screens focused on work.
+- **Motion:** short, purposeful transitions with reduced-motion support.
 
-- **World:** late-night barber studio meets a calm paper ledger: warm brass accents on deep charcoal surfaces.
-- **Typography:** Space Grotesk for task titles and numerals; Plus Jakarta Sans for controls and supporting copy.
-- **Palette:** near-black green charcoal for the working canvas, layered olive-charcoal surfaces for grouping, warm brass for primary actions and active state, and high-contrast cream text.
-- **Shape:** restrained 10–16px radii; rounded pills are reserved for compact filters and status controls.
-- **Depth:** soft, offset shadows and thin warm borders; no decorative glass panels.
-- **Motion:** one short rise-in for major page content, with reduced-motion support.
-
-## UX priorities
-
-1. Make the next cashier action obvious within one scan.
-2. Keep the checkout visible on desktop and easy to reach on mobile.
-3. Preserve readable contrast and keyboard focus across the dark theme.
-4. Keep all existing offline, reporting, sync, and settings behavior unchanged.
+## Experience priorities
+1. Make service selection and the next cashier action obvious at a glance.
+2. Keep the cart visible on wide screens and one tap away on phones.
+3. Give Layanan, Laporan, and Pengaturan the same coherent visual identity without collapsing their distinct tasks.
+4. Preserve Indonesian labels and rupiah formatting, keyboard focus, offline storage, sync, reporting, and transaction behavior.
+5. Keep all redesign changes local until explicitly approved; do not publish or deploy.

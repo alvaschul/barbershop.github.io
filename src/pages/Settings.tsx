@@ -296,7 +296,7 @@ export default function Settings() {
         </div>
         <div className="head-actions">
           <Button variant="outline" icon="lock" onClick={logout}>
-            Sign out
+            Keluar
           </Button>
         </div>
       </div>
@@ -355,7 +355,7 @@ export default function Settings() {
                       icon={u.isActive ? 'check' : 'close'}
                       onClick={() => handleToggle(u)}
                     >
-                      {u.isActive ? 'Disable' : 'Active'}
+                      {u.isActive ? 'Nonaktifkan' : 'Aktifkan'}
                     </Button>
                     <Button
                       variant="ghost"
